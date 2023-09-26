@@ -2133,43 +2133,45 @@ void HU_Erase(void)
 //
 void HU_drawPing(INT32 x, INT32 y, UINT32 ping, boolean notext, INT32 flags)
 {
-	UINT8 numbars = 0; // how many ping bars do we draw?
-	UINT8 barcolor = 31; // color we use for the bars (green, yellow, red or black)
-	SINT8 i = 0;
-	SINT8 yoffset = 6;
-	INT32 dx = x+1 - (V_SmallStringWidth(va("%dms", ping),
-				V_ALLOWLOWERCASE|flags)/2);
+	UINT8 bar_amount = 0, bar_color = 31;
+	SINT8 yoffs = 6;
 
-	if (ping < 128)
+	if (ping < 83)
 	{
-		numbars = 3;
-		barcolor = 112;
+		bar_amount = 4;
+		bar_color = 132;
+	}
+	else if (ping < 132)
+	{
+		bar_amount = 3;
+		bar_color = 112;
 	}
 	else if (ping < 256)
 	{
-		numbars = 2;
-		barcolor = 73;
+		bar_amount = 2;
+		bar_color = 73;
 	}
 	else if (ping < UINT32_MAX)
 	{
-		numbars = 1;
-		barcolor = 35;
+		bar_amount = 1;
+		bar_color = 34;
 	}
 
-	if (ping < UINT32_MAX && (!notext || vid.width >= 640)) // how sad, we're using a shit resolution.
-		V_DrawSmallString(dx, y+4, V_ALLOWLOWERCASE|flags, va("%dms", ping));
+	if ((ping < UINT32_MAX) && (!notext))
+		V_DrawCenteredSmallString(x + 2, y + 4, V_ALLOWLOWERCASE | (((ping > 400) && (hu_tick < 4)) ? V_REDMAP : 0) | flags, va("%dms", ping));
 
-	for (i=0; (i<3); i++) // Draw the ping bar
+	for (SINT8 i = 0; i < 4; i++)
 	{
-		V_DrawFill(x+2 *(i-1), y+yoffset-4, 2, 8-yoffset, 31|flags);
-		if (i < numbars)
-			V_DrawFill(x+2 *(i-1), y+yoffset-3, 1, 8-yoffset-1, barcolor|flags);
+		V_DrawFill(x + (2 * (i - 1)), y + yoffs - 4, 2, 8 - yoffs, 31 | flags);
 
-		yoffset -= 2;
+		if (i < bar_amount)
+			V_DrawFill(x + (2 * (i - 1)), y + yoffs - 3, 1, 8 - yoffs - 1, bar_color | flags);
+
+		yoffs--;
 	}
 
 	if (ping == UINT32_MAX)
-		V_DrawSmallScaledPatch(x + 4 - nopingicon->width/2, y + 9 - nopingicon->height/2, 0, nopingicon);
+		V_DrawSmallScaledPatch((x + 7) - (nopingicon->width / 2), (y + ((notext) ? 4 : 9)) - (nopingicon->height / 2), flags, nopingicon);
 }
 
 //
