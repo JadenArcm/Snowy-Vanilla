@@ -1,22 +1,25 @@
-# Sonic Robo Blast 2
-[![latest release](https://badgen.net/github/release/STJr/SRB2/stable)](https://github.com/STJr/SRB2/releases/latest)
+<h1 align="center"> Sonic Robo Blast 2 - *Vainile* </h1>
 
-[![Build status](https://ci.appveyor.com/api/projects/status/399d4hcw9yy7hg2y?svg=true)](https://ci.appveyor.com/project/STJr/srb2)
-[![Build status](https://travis-ci.org/STJr/SRB2.svg?branch=master)](https://travis-ci.org/STJr/SRB2)
-[![CircleCI](https://circleci.com/gh/STJr/SRB2/tree/master.svg?style=svg)](https://circleci.com/gh/STJr/SRB2/tree/master)
+Hello! This repository stores a custom build of [SRB2](https://srb2.org/), which mostly includes visual edits and nothing more.
 
-[Sonic Robo Blast 2](https://srb2.org/) is a 3D Sonic the Hedgehog fangame based on a modified version of [Doom Legacy](http://doomlegacy.sourceforge.net/).
+<br>
+<h1 align="center"> What can be found..? </h1>
 
-## Dependencies
-- SDL2 (Linux/OS X only)
-- SDL2-Mixer (Linux/OS X only)
-- libupnp (Linux/OS X only)
-- libgme (Linux/OS X only)
-- libopenmpt (Linux/OS X only)
+## Notable changes
+> * Color highlights for the menu.
+> * Menu "improvements" *(HUD Menu, lowercase, ...)*
+> * Kart-style netgame server list.
+> * Input display, everywhere! *(positions are free to modify)*
+> * Game detects when your build version is outdated ***(coming soon!!!!11!!)***
+> * Redesigned scoreboard ***(coming soon too!!11!)***
 
-## Compiling
+## Changes that maybe nobody cares about
+> * Tranlucency support for `V_DrawFill` (See MR [#1881](https://git.do.srb2.org/STJr/SRB2/-/merge_requests/1881))
+> * Viewpoint names are fancy. Yeah.
+> * The Ping and FPS/TPS display are now "Somewhat Better".
 
-See [SRB2 Wiki/Source code compiling](http://wiki.srb2.org/wiki/Source_code_compiling)
+<br>
+<h1 align="center"> Disclaimer n' stuff</h1>
 
-## Disclaimer
-Sonic Team Junior is in no way affiliated with SEGA or Sonic Team. We do not claim ownership of any of SEGA's intellectual property used in SRB2.
+* Just as the original game says, this fangame isn't affiliated with SEGA or Sonic Team.
+* I only do this for fun. I code this on my free times, so don't bother me with stuff about this.
