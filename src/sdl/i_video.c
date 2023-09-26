@@ -1245,8 +1245,8 @@ void I_FinishUpdate(void)
 	if (cv_closedcaptioning.value)
 		SCR_ClosedCaptions();
 
-	if (cv_ticrate.value)
-		SCR_DisplayTicRate();
+	// we already check for the cvar here.
+	SCR_DisplayTicRate();
 
 	if (cv_showping.value && netgame && consoleplayer != serverplayer)
 		SCR_DisplayLocalPing();

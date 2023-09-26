@@ -518,7 +518,7 @@ void SCR_DisplayTicRate(void)
 	double fps = round(averageFPS);
 
 	const INT32 x = vid.width - (2 * vid.dupx);
-	const INT32 y = vid.height - (9 * vid.dupy);
+	const INT32 y = vid.height - (10 * vid.dupy);
 	INT32 f = V_NOSCALESTART | V_USERHUDTRANS;
 
 	INT32 frameColor = 0, ticsColor = 0;
@@ -559,49 +559,12 @@ void SCR_DisplayTicRate(void)
 		else if (totaltics >= (TICRATE - 2)) ticsColor = V_SKYMAP;
 
 		char col = (0x80 + (ticsColor >> V_CHARCOLORSHIFT));
-		const INT32 yoffs = (cv_ticrate.value) ? 0 : 0;
+		const INT32 yoffs = (cv_ticrate.value) ? -17 : 0;
 		const char *drawnstr = (cv_ticrate.value == 2) ? va("%c%02d", col, totaltics) : va("%c%02d \x82TPS", col, totaltics);
 
 		V_DrawRightAlignedString(x, y + yoffs, f, drawnstr);
 		lasttic = onTic;
 	}
-
-#if 0
-	if (cap > 0)
-	{
-		if (fps <= cap / 2.0) ticcntcolor = V_REDMAP;
-		else if (fps <= cap * 0.90) ticcntcolor = V_YELLOWMAP;
-		else ticcntcolor = V_GREENMAP;
-	}
-	else
-	{
-		ticcntcolor = V_GREENMAP;
-	}
-
-	if (cv_ticrate.value == 2) // compact counter
-	{
-		V_DrawRightAlignedString(vid.width, h,
-			ticcntcolor|V_NOSCALESTART|V_USERHUDTRANS, va("%04.2f", averageFPS)); // use averageFPS directly
-	}
-	else if (cv_ticrate.value == 1) // full counter
-	{
-		const char *drawnstr;
-		INT32 width;
-
-		// The highest assignable cap is < 1000, so 3 characters is fine.
-		if (cap > 0)
-			drawnstr = va("%3.0f/%3u", fps, cap);
-		else
-			drawnstr = va("%4.2f", averageFPS);
-
-		width = V_StringWidth(drawnstr, V_NOSCALESTART);
-
-		V_DrawString(vid.width - ((7 * 8 * vid.dupx) + V_StringWidth("FPS: ", V_NOSCALESTART)), h,
-			V_YELLOWMAP|V_NOSCALESTART|V_USERHUDTRANS, "FPS:");
-		V_DrawString(vid.width - width, h,
-			ticcntcolor|V_NOSCALESTART|V_USERHUDTRANS, drawnstr);
-	}
-#endif
 }
 
 void SCR_DisplayLocalPing(void)
@@ -610,7 +573,7 @@ void SCR_DisplayLocalPing(void)
 	if (cv_showping.value == 1 || (cv_showping.value == 2 && servermaxping && ping > servermaxping))	// only show 2 (warning) if our ping is at a bad level
 	{
 		INT32 dispy = cv_ticrate.value ? 180 : 189;
-		HU_drawPing(307, dispy, ping, true, V_SNAPTORIGHT | V_SNAPTOBOTTOM);
+		HU_drawPing(306, dispy, ping, true, V_SNAPTORIGHT | V_SNAPTOBOTTOM);
 	}
 }
 
