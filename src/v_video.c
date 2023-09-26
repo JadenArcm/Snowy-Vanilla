@@ -46,7 +46,7 @@ UINT8 *screens[5];
 static CV_PossibleValue_t ticrate_cons_t[] = {{0, "No"}, {1, "Full"}, {2, "Compact"}, {0, NULL}};
 consvar_t cv_ticrate = CVAR_INIT ("showfps", "No", CV_SAVE, ticrate_cons_t, NULL);
 
-consvar_t cv_tpsrate = CVAR_INIT ("showtps", "No", CV_SAVE, CV_OnOff, NULL);
+consvar_t cv_tpsrate = CVAR_INIT ("showtps", "No", CV_SAVE, CV_YesNo, NULL);
 
 static void CV_palette_OnChange(void);
 
