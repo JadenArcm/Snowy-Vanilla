@@ -280,6 +280,7 @@ void SCR_Startup(void)
 	V_Recalc();
 
 	CV_RegisterVar(&cv_ticrate);
+	CV_RegisterVar(&cv_tpsrate);
 	CV_RegisterVar(&cv_constextsize);
 
 	V_SetPalette(0);
@@ -461,6 +462,9 @@ static int frame_index;
 static boolean fps_init = false;
 static precise_t fps_enter = 0;
 
+static boolean tpsgraph[TICRATE];
+static tic_t lasttic;
+
 void SCR_CalculateFPS(void)
 {
 	precise_t fps_finish = 0;
@@ -491,16 +495,78 @@ void SCR_CalculateFPS(void)
 #endif
 }
 
+static tic_t SCR_CalculateTPS(tic_t ontic)
+{
+	tic_t i, totaltics = 0;
+
+	for (i = lasttic + 1; (i < (TICRATE + lasttic) && (i < ontic)); ++i)
+		tpsgraph[i % TICRATE] = false;
+
+	tpsgraph[ontic % TICRATE] = true;
+
+	for (i = 0; i < TICRATE; ++i)
+		if (tpsgraph[i])
+			++totaltics;
+
+	// i am that lazy.
+	return totaltics;
+}
+
 void SCR_DisplayTicRate(void)
 {
-	INT32 ticcntcolor = 0;
-	const INT32 h = vid.height-(8*vid.dupy);
 	UINT32 cap = R_GetFramerateCap();
 	double fps = round(averageFPS);
+
+	const INT32 x = vid.width - (2 * vid.dupx);
+	const INT32 y = vid.height - (9 * vid.dupy);
+	INT32 f = V_NOSCALESTART | V_USERHUDTRANS;
+
+	INT32 frameColor = 0, ticsColor = 0;
 
 	if (gamestate == GS_NULL)
 		return;
 
+	if (cv_ticrate.value)
+	{
+		// Frame color changes
+		if (cap > 0)
+		{
+			if (fps <= (cap / 2.0)) frameColor = V_REDMAP;
+			else if (fps >= cap) frameColor = V_GREENMAP;
+		}
+		else
+			frameColor = V_GREENMAP;
+
+		// Draw the display
+		if (cv_ticrate.value == 2)
+			V_DrawRightAlignedString(x, y, f | frameColor, va("%4.2f", averageFPS));
+
+		else if (cv_ticrate.value == 1)
+		{
+			// The highest assignable cap is < 1000, so 3 characters is fine.
+			const char *drawnstr = (cap > 0) ? va("%3.0f/%u", fps, cap) : va("%4.2f", averageFPS);
+
+			V_DrawRightAlignedString(x, y, f | V_YELLOWMAP, "FPS");
+			V_DrawRightAlignedString(x - V_StringWidth(" FPS", f), y, f | frameColor, drawnstr);
+		}
+	}
+
+	if (cv_tpsrate.value)
+	{
+		tic_t onTic = I_GetTime(), totaltics = SCR_CalculateTPS(onTic);
+
+		if (totaltics <= (TICRATE / 2)) ticsColor = V_REDMAP;
+		else if (totaltics >= (TICRATE - 2)) ticsColor = V_SKYMAP;
+
+		char col = (0x80 + (ticsColor >> V_CHARCOLORSHIFT));
+		const INT32 yoffs = (cv_ticrate.value) ? 0 : 0;
+		const char *drawnstr = (cv_ticrate.value == 2) ? va("%c%02d", col, totaltics) : va("%c%02d \x82TPS", col, totaltics);
+
+		V_DrawRightAlignedString(x, y + yoffs, f, drawnstr);
+		lasttic = onTic;
+	}
+
+#if 0
 	if (cap > 0)
 	{
 		if (fps <= cap / 2.0) ticcntcolor = V_REDMAP;
@@ -535,6 +601,7 @@ void SCR_DisplayTicRate(void)
 		V_DrawString(vid.width - width, h,
 			ticcntcolor|V_NOSCALESTART|V_USERHUDTRANS, drawnstr);
 	}
+#endif
 }
 
 void SCR_DisplayLocalPing(void)
