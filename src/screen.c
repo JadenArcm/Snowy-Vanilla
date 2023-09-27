@@ -569,6 +569,9 @@ void SCR_DisplayTicRate(void)
 
 void SCR_DisplayLocalPing(void)
 {
+	if (gamestate == GS_NULL)
+		return;
+
 	if (!cv_showping.value)
 		return;
 
