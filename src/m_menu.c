@@ -329,6 +329,7 @@ static void M_ChangeControl(INT32 choice);
 static void M_VideoOptions(INT32 choice);
 
 menu_t OP_VideoOptionsDef, OP_VideoModeDef, OP_ColorOptionsDef;
+menu_t OP_HUDOptionsDef;
 
 #ifdef HWRENDER
 	static void M_OpenGLOptionsMenu(void);
@@ -384,7 +385,6 @@ static void M_DrawControl(void);
 static void M_DrawMainVideoMenu(void);
 static void M_DrawVideoMode(void);
 static void M_DrawColorMenu(void);
-static void M_DrawHUDMenu(void);
 static void M_DrawScreenshotMenu(void);
 static void M_DrawMonitorToggles(void);
 #ifndef NONET
