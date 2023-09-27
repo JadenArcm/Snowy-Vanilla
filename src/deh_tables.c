@@ -4909,6 +4909,8 @@ const char *const MENUTYPES_LIST[] = {
 	"OP_OPENGL",
 	"OP_OPENGL_LIGHTING",
 
+	"OP_HUD",
+
 	"OP_SOUND",
 
 	"OP_SERVER",

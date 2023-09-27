@@ -100,6 +100,8 @@ typedef enum
 	MN_OP_OPENGL,
 	MN_OP_OPENGL_LIGHTING,
 
+	MN_OP_HUD,
+
 	MN_OP_SOUND,
 
 	MN_OP_SERVER,

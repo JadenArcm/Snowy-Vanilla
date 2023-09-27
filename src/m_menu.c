@@ -327,14 +327,18 @@ static void M_ChangeControl(INT32 choice);
 
 // Video & Sound
 static void M_VideoOptions(INT32 choice);
+
 menu_t OP_VideoOptionsDef, OP_VideoModeDef, OP_ColorOptionsDef;
+
 #ifdef HWRENDER
-static void M_OpenGLOptionsMenu(void);
-menu_t OP_OpenGLOptionsDef;
-#ifdef ALAM_LIGHTING
-menu_t OP_OpenGLLightingDef;
-#endif // ALAM_LIGHTING
-#endif // HWRENDER
+	static void M_OpenGLOptionsMenu(void);
+	menu_t OP_OpenGLOptionsDef;
+
+	#ifdef ALAM_LIGHTING
+		menu_t OP_OpenGLLightingDef;
+	#endif
+#endif
+
 menu_t OP_SoundOptionsDef;
 menu_t OP_SoundAdvancedDef;
 
@@ -380,6 +384,7 @@ static void M_DrawControl(void);
 static void M_DrawMainVideoMenu(void);
 static void M_DrawVideoMode(void);
 static void M_DrawColorMenu(void);
+static void M_DrawHUDMenu(void);
 static void M_DrawScreenshotMenu(void);
 static void M_DrawMonitorToggles(void);
 #ifndef NONET
@@ -1047,11 +1052,12 @@ static menuitem_t OP_MainMenu[] =
 	{IT_CVAR    | IT_STRING, NULL, "Controls per key",     &cv_controlperkey,   30},
 
 	{IT_CALL    | IT_STRING, NULL, "Video Options...",     M_VideoOptions,      50},
-	{IT_SUBMENU | IT_STRING, NULL, "Sound Options...",     &OP_SoundOptionsDef, 60},
+	{IT_SUBMENU | IT_STRING, NULL, "HUD Options...",       &OP_HUDOptionsDef,   60},
+	{IT_SUBMENU | IT_STRING, NULL, "Sound Options...",     &OP_SoundOptionsDef, 70},
 
-	{IT_CALL    | IT_STRING, NULL, "Server Options...",    M_ServerOptions,     80},
+	{IT_CALL    | IT_STRING, NULL, "Server Options...",    M_ServerOptions,     90},
 
-	{IT_SUBMENU | IT_STRING, NULL, "Data Options...",      &OP_DataOptionsDef, 100},
+	{IT_SUBMENU | IT_STRING, NULL, "Data Options...",      &OP_DataOptionsDef, 110},
 };
 
 static menuitem_t OP_P1ControlsMenu[] =
@@ -1311,60 +1317,40 @@ enum
 static menuitem_t OP_VideoOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "Screen", NULL, 0},
-	{IT_STRING | IT_CALL,  NULL, "Set Resolution...",       M_VideoModeMenu,          6},
+	{IT_STRING | IT_CALL, NULL, "Set Resolution...", M_VideoModeMenu,      6},
 
 #if defined (__unix__) || defined (UNIXCOMMON) || defined (HAVE_SDL)
-	{IT_STRING|IT_CVAR,      NULL, "Fullscreen (F11)",          &cv_fullscreen,      11},
+	{IT_STRING | IT_CVAR, NULL, "Fullscreen (F11)",  &cv_fullscreen,      11},
 #endif
-	{IT_STRING | IT_CVAR, NULL, "Vertical Sync",                &cv_vidwait,         16},
+
+	{IT_STRING | IT_CVAR, NULL, "Vertical Sync",     &cv_vidwait,         16},
+
 #ifdef HWRENDER
-	{IT_STRING | IT_CVAR, NULL, "Renderer (F10)",               &cv_renderer,        21},
+	{IT_STRING | IT_CVAR, NULL, "Renderer (F10)",    &cv_renderer,        21},
 #else
-	{IT_TRANSTEXT | IT_PAIR, "Renderer", "Software",            &cv_renderer,        21},
+	{IT_TRANSTEXT | IT_PAIR, "Renderer", "Software", &cv_renderer,        21},
 #endif
 
 	{IT_HEADER, NULL, "Color Profile", NULL, 30},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Brightness", &cv_globalgamma,36},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Saturation", &cv_globalsaturation, 41},
-	{IT_SUBMENU|IT_STRING, NULL, "Advanced Settings...",     &OP_ColorOptionsDef,  46},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Brightness",             &cv_globalgamma,      36},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Saturation",             &cv_globalsaturation, 41},
+	{IT_SUBMENU | IT_STRING,             NULL, "Advanced Settings...",   &OP_ColorOptionsDef,  46},
 
-	{IT_HEADER, NULL, "Heads-Up Display", NULL, 55},
-	{IT_STRING | IT_CVAR, NULL, "Show HUD",                  &cv_showhud,          61},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER,
-	                      NULL, "HUD Transparency",          &cv_translucenthud,   66},
-	{IT_STRING | IT_CVAR, NULL, "Score/Time/Rings",          &cv_timetic,          71},
-	{IT_STRING | IT_CVAR, NULL, "Show Powerups",             &cv_powerupdisplay,   76},
-	{IT_STRING | IT_CVAR, NULL, "Local ping display",		&cv_showping,			81}, // shows ping next to framerate if we want to.
-	{IT_STRING | IT_CVAR, NULL, "Show player names",         &cv_seenames,         86},
+	{IT_HEADER, NULL, "Level", NULL, 55},
+	{IT_STRING | IT_CVAR, NULL, "Draw Distance",             &cv_drawdist,        61},
+	{IT_STRING | IT_CVAR, NULL, "Weather Draw Dist.",        &cv_drawdist_precip, 66},
+	{IT_STRING | IT_CVAR, NULL, "NiGHTS Hoop Draw Dist.",    &cv_drawdist_nights, 71},
 
-	{IT_HEADER, NULL, "Console", NULL, 95},
-	{IT_STRING | IT_CVAR, NULL, "Background color",          &cons_backcolor,      101},
-	{IT_STRING | IT_CVAR, NULL, "Text Size",                 &cv_constextsize,    106},
-
-	{IT_HEADER, NULL, "Chat", NULL, 115},
-	{IT_STRING | IT_CVAR, NULL, "Chat Mode",            		 	 &cv_consolechat,  121},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Width",    &cv_chatwidth,     126},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Height",   &cv_chatheight,    131},
-	{IT_STRING | IT_CVAR, NULL, "Message Fadeout Time",              &cv_chattime,    136},
-	{IT_STRING | IT_CVAR, NULL, "Chat Notifications",           	 &cv_chatnotifications,  141},
-	{IT_STRING | IT_CVAR, NULL, "Spam Protection",           		 &cv_chatspamprotection,  146},
-	{IT_STRING | IT_CVAR, NULL, "Chat background tint",           	 &cv_chatbacktint,  151},
-
-	{IT_HEADER, NULL, "Level", NULL, 160},
-	{IT_STRING | IT_CVAR, NULL, "Draw Distance",             &cv_drawdist,        166},
-	{IT_STRING | IT_CVAR, NULL, "Weather Draw Dist.",        &cv_drawdist_precip, 171},
-	{IT_STRING | IT_CVAR, NULL, "NiGHTS Hoop Draw Dist.",    &cv_drawdist_nights, 176},
-
-	{IT_HEADER, NULL, "Diagnostic", NULL, 184},
-	{IT_STRING | IT_CVAR, NULL, "Show FPS",                  &cv_ticrate,         190},
-	{IT_STRING | IT_CVAR, NULL, "Show TPS",                  &cv_tpsrate,         195},
-	{IT_STRING | IT_CVAR, NULL, "Clear Before Redraw",       &cv_homremoval,      200},
-	{IT_STRING | IT_CVAR, NULL, "Show \"FOCUS LOST\"",       &cv_showfocuslost,   205},
+	{IT_HEADER, NULL, "Diagnostic", NULL, 80},
+	{IT_STRING | IT_CVAR, NULL, "Show FPS",                  &cv_ticrate,         86},
+	{IT_STRING | IT_CVAR, NULL, "Show TPS",                  &cv_tpsrate,         91},
+	{IT_STRING | IT_CVAR, NULL, "Clear Before Redraw",       &cv_homremoval,      96},
+	{IT_STRING | IT_CVAR, NULL, "Show \"FOCUS LOST\"",       &cv_showfocuslost,  101},
 
 #ifdef HWRENDER
-	{IT_HEADER, NULL, "Renderer", NULL, 213},
-	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 219},
-	{IT_STRING | IT_CVAR, NULL, "FPS Cap",                   &cv_fpscap,          224},
+	{IT_HEADER, NULL, "Renderer", NULL, 110},
+	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 116},
+	{IT_STRING | IT_CVAR, NULL, "FPS Cap",                   &cv_fpscap,          121},
 #endif
 };
 
@@ -1450,6 +1436,34 @@ static menuitem_t OP_OpenGLLightingMenu[] =
 #endif // ALAM_LIGHTING
 
 #endif
+
+static menuitem_t OP_HUDOptions[] =
+{
+	{IT_HEADER, NULL, "Heads-Up Display", NULL, 5},
+	{IT_STRING | IT_CVAR,                NULL, "Show HUD",         &cv_showhud,        11},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "HUD Transparency", &cv_translucenthud, 16},
+	{IT_STRING | IT_CVAR,                NULL, "Score/Time/Rings", &cv_timetic,        21},
+	{IT_STRING | IT_CVAR,                NULL, "Show Powerups",    &cv_powerupdisplay, 26},
+
+	{IT_HEADER, NULL, "Console", NULL, 35},
+	{IT_STRING | IT_CVAR, NULL, "Background color", &cons_backcolor,     41},
+	{IT_STRING | IT_CVAR, NULL, "Text Size",        &cv_constextsize,    46},
+	{IT_STRING | IT_CVAR, NULL, "Menu Highlights",  &cons_menuhighlight, 51},
+
+	{IT_HEADER, NULL, "Online Display", NULL, 60},
+	{IT_STRING | IT_CVAR,                NULL, "Chat Mode",            &cv_consolechat,        66},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Width",       &cv_chatwidth,          71},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Height",      &cv_chatheight,         76},
+	{IT_STRING | IT_CVAR,                NULL, "Message Fadeout Time", &cv_chattime,           81},
+	{IT_STRING | IT_CVAR,                NULL, "Chat Notifications",   &cv_chatnotifications,  86},
+	{IT_STRING | IT_CVAR,                NULL, "Spam Protection",      &cv_chatspamprotection, 91},
+	{IT_STRING | IT_CVAR,                NULL, "Chat background tint", &cv_chatbacktint,       96},
+
+	{IT_HEADER, NULL, "Miscellaneous", NULL, 105},
+	{IT_STRING | IT_CVAR, NULL, "Local ping display", &cv_showping,       111},
+	{IT_STRING | IT_CVAR, NULL, "Show player names",  &cv_seenames,       116},
+	{IT_STRING | IT_CVAR, NULL, "Lowercased menu",    &cv_lowercasedmenu, 121},
+};
 
 static menuitem_t OP_SoundOptionsMenu[] =
 {
@@ -2168,6 +2182,20 @@ menu_t OP_VideoModeDef =
 	0,
 	NULL
 };
+
+menu_t OP_HUDOptionsDef =
+{
+	MTREE2(MN_OP_MAIN, MN_OP_HUD),
+	"M_DATA",
+	sizeof(OP_HUDOptions) / sizeof(menuitem_t),
+	&OP_MainDef,
+	OP_HUDOptions,
+	M_DrawGenericScrollMenu,
+	30, 30,
+	0,
+	NULL
+};
+
 menu_t OP_ColorOptionsDef =
 {
 	MTREE3(MN_OP_MAIN, MN_OP_VIDEO, MN_OP_COLOR),
@@ -7123,7 +7151,7 @@ static void M_Options(INT32 choice)
 	(void)choice;
 
 	// if the player is not admin or server, disable server options
-	OP_MainMenu[5].status = (Playing() && !(server || IsPlayerAdmin(consoleplayer))) ? (IT_GRAYEDOUT) : (IT_STRING|IT_CALL);
+	OP_MainMenu[6].status = (Playing() && !(server || IsPlayerAdmin(consoleplayer))) ? (IT_GRAYEDOUT) : (IT_STRING|IT_CALL);
 
 	// if the player is playing _at all_, disable the erase data options
 	OP_DataOptionsMenu[2].status = (Playing()) ? (IT_GRAYEDOUT) : (IT_STRING|IT_SUBMENU);
