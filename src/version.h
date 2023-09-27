@@ -13,3 +13,6 @@
 
 // Define this as a prerelease version suffix (pre#, RC#)
 //#define BETAVERSION "pre1"
+
+// Vainile Version shit
+#define VAINILE_VERSION "v0.1"

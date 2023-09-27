@@ -431,6 +431,16 @@ typedef struct
 	INT32 gamemap;
 } saveinfo_t;
 
+// what a weird thing.
+typedef struct
+{
+	INT32 basic;
+	INT32 warning;
+	INT32 recommended;
+	INT32 lower;
+} cusmenuflags_t;
+extern cusmenuflags_t menuflags;
+
 extern description_t description[MAXSKINS];
 
 extern consvar_t cv_showfocuslost;

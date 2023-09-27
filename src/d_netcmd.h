@@ -121,6 +121,9 @@ extern boolean timedemo_quit;
 
 extern consvar_t cv_freedemocamera;
 
+// Do i need to explain this again?
+extern consvar_t cv_lowercasedmenu;
+
 typedef enum
 {
 	XD_NAMEANDCOLOR = 1,

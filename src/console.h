@@ -44,7 +44,7 @@ extern INT32 con_clearlines; // lines of top of screen to refresh
 extern boolean con_hudupdate; // hud messages have changed, need refresh
 extern UINT32 con_scalefactor; // console text scale factor
 
-extern consvar_t cons_backcolor;
+extern consvar_t cons_backcolor, cons_menuhighlight;
 
 extern UINT8 *yellowmap, *magentamap, *lgreenmap, *bluemap, *graymap, *redmap, *orangemap, *skymap, *purplemap, *aquamap, *peridotmap, *azuremap, *brownmap, *rosymap, *invertmap;
 

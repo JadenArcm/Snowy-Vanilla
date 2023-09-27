@@ -387,6 +387,9 @@ consvar_t cv_ps_descriptor = CVAR_INIT ("ps_descriptor", "Average", 0, ps_descri
 
 consvar_t cv_freedemocamera = CVAR_INIT("freedemocamera", "Off", CV_SAVE, CV_OnOff, NULL);
 
+// Vainile Stuff
+consvar_t cv_lowercasedmenu = CVAR_INIT ("lowercasemenu", "On", CV_SAVE, CV_OnOff, NULL);
+
 char timedemo_name[256];
 boolean timedemo_csv;
 char timedemo_csv_id[256];
@@ -619,6 +622,9 @@ void D_RegisterServerCommands(void)
 	CV_RegisterVar(&cv_addons_folder);
 
 	CV_RegisterVar(&cv_dummyconsvar);
+
+	// Vainile Stuff #2
+	CV_RegisterVar(&cv_lowercasedmenu);
 }
 
 // =========================================================================

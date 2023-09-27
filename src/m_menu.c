@@ -1706,9 +1706,6 @@ menu_t MISC_ChangeLevelDef =
 
 menu_t MISC_HelpDef = IMAGEDEF(MISC_HelpMenu);
 
-static INT32 highlightflags, recommendedflags, warningflags;
-
-
 // Sky Room
 menu_t SR_PandoraDef =
 {
@@ -2801,6 +2798,109 @@ void M_SetMenuCurTitlePics(void)
 	M_IterateMenuTree(MIT_SetCurTitlePics, NULL);
 }
 
+//================================
+// Vainile presents:
+// Color highlights + lowercasing
+//================================
+
+cusmenuflags_t menuflags;
+static void M_HandleCusMenuFlags(void)
+{
+	INT16 fakeGametype;
+
+	// Handle the lowercase thing
+	menuflags.lower = (cv_lowercasedmenu.value) ? V_ALLOWLOWERCASE : 0;
+
+	// Dumb things for dumbs
+	menuflags.warning = V_REDMAP;
+	menuflags.recommended = V_GREENMAP;
+
+	// If we are using a SPECIFIC color...
+	if (cons_menuhighlight.value)
+	{
+		menuflags.basic = cons_menuhighlight.value;
+
+		if (menuflags.basic == V_REDMAP)
+		{
+			menuflags.warning = V_ORANGEMAP;
+			return;
+		}
+		else if (menuflags.basic == V_GREENMAP)
+		{
+			menuflags.recommended = V_SKYMAP;
+			return;
+		}
+
+		return;
+	}
+
+	//----------------//
+	// Gametype stuff //
+	//----------------//
+
+	if (modeattacking || (gamestate == GS_TIMEATTACK))
+	{
+		menuflags.basic = V_ORANGEMAP;
+		return;
+	}
+
+	if (currentMenu->drawroutine == M_DrawServerMenu)
+		fakeGametype = cv_newgametype.value;
+
+	else if (!Playing())
+	{
+		menuflags.basic = V_YELLOWMAP;
+		return;
+	}
+	else
+		fakeGametype = gametype;
+
+	//---------------------//
+	// Real gametype stuff //
+	//---------------------//
+
+	if (fakeGametype == GT_COOP)
+	{
+		menuflags.basic = V_ORANGEMAP;
+		return;
+	}
+	else if (fakeGametype == GT_COMPETITION)
+	{
+		menuflags.basic = V_GREENMAP;
+		menuflags.recommended = V_SKYMAP;
+		return;
+	}
+	else if (fakeGametype == GT_RACE)
+	{
+		menuflags.basic = V_PERIDOTMAP;
+		return;
+	}
+	else if (fakeGametype == GT_MATCH)
+	{
+		menuflags.basic = V_BROWNMAP;
+		return;
+	}
+	else if (fakeGametype == GT_TEAMMATCH)
+	{
+		menuflags.basic = V_BLUEMAP;
+		return;
+	}
+	else if (fakeGametype == GT_CTF)
+	{
+		menuflags.basic = V_REDMAP;
+		menuflags.warning = V_ORANGEMAP;
+		return;
+	}
+	else if ((fakeGametype == GT_TAG) || (fakeGametype == GT_HIDEANDSEEK))
+	{
+		menuflags.basic = V_AQUAMAP;
+		return;
+	}
+
+	// Fallback to the defaults, if something wasn't met.
+	menuflags.basic = V_YELLOWMAP, menuflags.warning = V_REDMAP, menuflags.recommended = V_GREENMAP;
+}
+
 // ====================================
 // MENU STATE
 // ====================================
@@ -3594,6 +3694,8 @@ void M_Drawer(void)
 	if (currentMenu == &MessageDef)
 		menuactive = true;
 
+	M_HandleCusMenuFlags();
+
 	if (menuactive)
 	{
 		// now that's more readable with a faded background (yeah like Quake...)
@@ -3607,18 +3709,22 @@ void M_Drawer(void)
 		// ... but only in the MAIN MENU.  I'm a picky bastard.
 		if (currentMenu == &MainDef)
 		{
+			INT32 x = 3, y = 191;
+			INT32 f = V_ALLOWLOWERCASE | V_40TRANS | V_ALLOWLOWERCASE | V_SNAPTOBOTTOM | V_SNAPTOLEFT;
+
 			if (customversionstring[0] != '\0')
 			{
-				V_DrawThinString(vid.dupx, vid.height - 17*vid.dupy, V_NOSCALESTART|V_TRANSLUCENT, "Mod version:");
-				V_DrawThinString(vid.dupx, vid.height - 9*vid.dupy, V_NOSCALESTART|V_TRANSLUCENT|V_ALLOWLOWERCASE, customversionstring);
+				V_DrawThinString(x, y - 8, f | V_YELLOWMAP, "Mod version:");
+				V_DrawThinString(x, y, f, customversionstring);
 			}
 			else
 			{
-#ifdef DEVELOP // Development -- show revision / branch info
-				V_DrawThinString(vid.dupx, vid.height - 17*vid.dupy, V_NOSCALESTART|V_TRANSLUCENT|V_ALLOWLOWERCASE, compbranch);
-				V_DrawThinString(vid.dupx, vid.height - 9*vid.dupy,  V_NOSCALESTART|V_TRANSLUCENT|V_ALLOWLOWERCASE, comprevision);
-#else // Regular build
-				V_DrawThinString(vid.dupx, vid.height - 9*vid.dupy, V_NOSCALESTART|V_TRANSLUCENT|V_ALLOWLOWERCASE, va("%s", VERSIONSTRING));
+#ifdef DEVELOP
+				V_DrawThinString(x, y - 8, f | V_ORANGEMAP, compbranch);
+				V_DrawThinString(x, y, f, comprevision);
+#else
+				V_DrawThinString(x, y - 8, f, VERSIONSTRING);
+				V_DrawThinString(x, y, f, va("%cVainile\x80 %s", 0x8C, VAINILE_VERSION));
 #endif
 			}
 		}
@@ -3629,9 +3735,9 @@ void M_Drawer(void)
 	{
 		M_DrawTextBox((BASEVIDWIDTH/2) - (60), (BASEVIDHEIGHT/2) - (16), 13, 2);
 		if (gamestate == GS_LEVEL && (P_AutoPause() || paused))
-			V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2) - (4), V_YELLOWMAP, "Game Paused");
+			V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2) - (4), menuflags.basic, "Game Paused");
 		else
-			V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2) - (4), V_YELLOWMAP, "Focus Lost");
+			V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2) - (4), menuflags.basic, "Focus Lost");
 	}
 }
 
@@ -4091,9 +4197,9 @@ static void M_DrawSlider(INT32 x, INT32 y, const consvar_t *cv, boolean ontop)
 	if (ontop)
 	{
 		V_DrawCharacter(x - 6 - (skullAnimCounter/5), y,
-			'\x1C' | V_YELLOWMAP, false);
+			'\x1C' | menuflags.basic, false);
 		V_DrawCharacter(x + 80 + (skullAnimCounter/5), y,
-			'\x1D' | V_YELLOWMAP, false);
+			'\x1D' | menuflags.basic, false);
 		V_DrawCenteredString(x + 40, y, V_30TRANS,
 			(cv->flags & CV_FLOAT) ? va("%.2f", FIXED_TO_FLOAT(cv->value)) : va("%d", cv->value));
 	}
@@ -4332,9 +4438,9 @@ static void M_DrawGenericMenu(void)
 					cursory = y;
 
 				if ((currentMenu->menuitems[i].status & IT_DISPLAY)==IT_STRING)
-					V_DrawString(x, y, 0, currentMenu->menuitems[i].text);
+					V_DrawString(x, y, menuflags.lower, currentMenu->menuitems[i].text);
 				else
-					V_DrawString(x, y, V_YELLOWMAP, currentMenu->menuitems[i].text);
+					V_DrawString(x, y, menuflags.basic | menuflags.lower, currentMenu->menuitems[i].text);
 
 				// Cvar specific handling
 				switch (currentMenu->menuitems[i].status & IT_TYPE)
@@ -4358,13 +4464,13 @@ static void M_DrawGenericMenu(void)
 								break;
 							default:
 								V_DrawRightAlignedString(BASEVIDWIDTH - x, y,
-									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
+									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? menuflags.warning : menuflags.basic) | menuflags.lower, cv->string);
 								if (i == itemOn)
 								{
 									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(cv->string, 0) - (skullAnimCounter/5), y,
-											'\x1C' | V_YELLOWMAP, false);
+											'\x1C' | menuflags.basic, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
-											'\x1D' | V_YELLOWMAP, false);
+											'\x1D' | menuflags.basic, false);
 								}
 								break;
 						}
@@ -4373,7 +4479,7 @@ static void M_DrawGenericMenu(void)
 					y += STRINGHEIGHT;
 					break;
 			case IT_STRING2:
-				V_DrawString(x, y, 0, currentMenu->menuitems[i].text);
+				V_DrawString(x, y, menuflags.lower, currentMenu->menuitems[i].text);
 				/* FALLTHRU */
 			case IT_DYLITLSPACE:
 				y += SMALLLINEHEIGHT;
@@ -4389,14 +4495,14 @@ static void M_DrawGenericMenu(void)
 					y = currentMenu->y+currentMenu->menuitems[i].alphaKey;
 				/* FALLTHRU */
 			case IT_TRANSTEXT2:
-				V_DrawString(x, y, V_TRANSLUCENT, currentMenu->menuitems[i].text);
+				V_DrawString(x, y, V_TRANSLUCENT | menuflags.lower, currentMenu->menuitems[i].text);
 				y += SMALLLINEHEIGHT;
 				break;
 			case IT_QUESTIONMARKS:
 				if (currentMenu->menuitems[i].alphaKey)
 					y = currentMenu->y+currentMenu->menuitems[i].alphaKey;
 
-				V_DrawString(x, y, V_TRANSLUCENT|V_OLDSPACING, M_CreateSecretMenuOption(currentMenu->menuitems[i].text));
+				V_DrawString(x, y, V_TRANSLUCENT | V_OLDSPACING, M_CreateSecretMenuOption(currentMenu->menuitems[i].text));
 				y += SMALLLINEHEIGHT;
 				break;
 			case IT_HEADERTEXT: // draws 16 pixels to the left, in yellow text
@@ -4421,7 +4527,7 @@ static void M_DrawGenericMenu(void)
 	{
 		V_DrawScaledPatch(currentMenu->x - 24, cursory, 0,
 			W_CachePatchName("M_CURSOR", PU_PATCH));
-		V_DrawString(currentMenu->x, cursory, V_YELLOWMAP, currentMenu->menuitems[itemOn].text);
+		V_DrawString(currentMenu->x, cursory, menuflags.basic | menuflags.lower, currentMenu->menuitems[itemOn].text);
 	}
 }
 
@@ -4518,7 +4624,7 @@ static void M_DrawControlsDefMenu(void)
 		}
 	}
 
-	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + 80, V_YELLOWMAP, PlaystyleNames[opt]);
+	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + 80, menuflags.basic | menuflags.lower, PlaystyleNames[opt]);
 }
 
 #define scrollareaheight 72
@@ -4560,9 +4666,9 @@ static void M_DrawGenericScrollMenu(void)
 	}
 
 	if (i)
-		V_DrawString(currentMenu->x - 20, currentMenu->y - (skullAnimCounter/5), V_YELLOWMAP, "\x1A"); // up arrow
+		V_DrawString(currentMenu->x - 20, currentMenu->y - (skullAnimCounter/5), menuflags.basic, "\x1A"); // up arrow
 	if (max != bottom)
-		V_DrawString(currentMenu->x - 20, currentMenu->y + 2*scrollareaheight + (skullAnimCounter/5), V_YELLOWMAP, "\x1B"); // down arrow
+		V_DrawString(currentMenu->x - 20, currentMenu->y + 2*scrollareaheight + (skullAnimCounter/5), menuflags.basic, "\x1B"); // down arrow
 
 	// draw title (or big pic)
 	M_DrawMenuTitle();
@@ -4588,9 +4694,9 @@ static void M_DrawGenericScrollMenu(void)
 			case IT_STRING:
 			case IT_WHITESTRING:
 				if (i != itemOn && (currentMenu->menuitems[i].status & IT_DISPLAY)==IT_STRING)
-					V_DrawString(x, y, 0, currentMenu->menuitems[i].text);
+					V_DrawString(x, y, menuflags.lower, currentMenu->menuitems[i].text);
 				else
-					V_DrawString(x, y, V_YELLOWMAP, currentMenu->menuitems[i].text);
+					V_DrawString(x, y, menuflags.basic | menuflags.lower, currentMenu->menuitems[i].text);
 
 				// Cvar specific handling
 				switch (currentMenu->menuitems[i].status & IT_TYPE)
@@ -4609,7 +4715,7 @@ static void M_DrawGenericScrollMenu(void)
 								if (y + 12 > (currentMenu->y + 2*scrollareaheight))
 									break;
 								M_DrawTextBox(x, y + 4, MAXSTRINGLENGTH, 1);
-								V_DrawString(x + 8, y + 12, V_ALLOWLOWERCASE, cv->string);
+								V_DrawString(x + 8, y + 12, menuflags.lower, cv->string);
 								if (skullAnimCounter < 4 && i == itemOn)
 									V_DrawCharacter(x + 8 + V_StringWidth(cv->string, 0), y + 12,
 										'_' | 0x80, false);
@@ -4628,13 +4734,13 @@ static void M_DrawGenericScrollMenu(void)
 								break;
 							default:
 								V_DrawRightAlignedString(BASEVIDWIDTH - x, y,
-									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
+									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? menuflags.warning : menuflags.basic) | menuflags.lower, cv->string);
 								if (i == itemOn)
 								{
 									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(cv->string, 0) - (skullAnimCounter/5), y,
-											'\x1C' | V_YELLOWMAP, false);
+											'\x1C' | menuflags.basic, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
-											'\x1D' | V_YELLOWMAP, false);
+											'\x1D' | menuflags.basic, false);
 								}
 								break;
 						}
@@ -4646,13 +4752,13 @@ static void M_DrawGenericScrollMenu(void)
 				{
 					case IT_PAIR:
 						V_DrawString(x, y,
-								V_TRANSLUCENT, currentMenu->menuitems[i].patch);
+								V_TRANSLUCENT | menuflags.lower, currentMenu->menuitems[i].patch);
 						V_DrawRightAlignedString(BASEVIDWIDTH - x, y,
-								V_TRANSLUCENT, currentMenu->menuitems[i].text);
+								V_TRANSLUCENT | menuflags.lower, currentMenu->menuitems[i].text);
 						break;
 					default:
 						V_DrawString(x, y,
-								V_TRANSLUCENT, currentMenu->menuitems[i].text);
+								V_TRANSLUCENT | menuflags.lower, currentMenu->menuitems[i].text);
 				}
 				break;
 			case IT_QUESTIONMARKS:
@@ -4676,6 +4782,7 @@ static void M_DrawPauseMenu(void)
 
 	if (gamestate == GS_LEVEL || gamestate == GS_INTERMISSION)
 	{
+		const char *hasZone = (mapheaderinfo[gamemap-1]->levelflags & LF_NOZONE) ? "" : " Zone";
 		emblem_t *emblem_detail[3] = {NULL, NULL, NULL};
 		char emblem_text[3][20];
 		INT32 i;
@@ -4686,9 +4793,12 @@ static void M_DrawPauseMenu(void)
 		M_DrawMapEmblems(gamemap, 272, 28, true);
 
 		if (mapheaderinfo[gamemap-1]->actnum != 0)
-			V_DrawString(40, 28, V_YELLOWMAP, va("%s %d", mapheaderinfo[gamemap-1]->lvlttl, mapheaderinfo[gamemap-1]->actnum));
+			V_DrawThinString(40, 28, menuflags.basic | V_ALLOWLOWERCASE, va("%s%s, Act %d", mapheaderinfo[gamemap-1]->lvlttl, hasZone, mapheaderinfo[gamemap-1]->actnum));
 		else
-			V_DrawString(40, 28, V_YELLOWMAP, mapheaderinfo[gamemap-1]->lvlttl);
+			V_DrawThinString(40, 28, menuflags.basic | V_ALLOWLOWERCASE, va("%s%s", mapheaderinfo[gamemap-1]->lvlttl, hasZone));
+
+		if (mapheaderinfo[gamemap - 1]->subttl[0] != '\0')
+			V_DrawSmallString(40, 36, V_ALLOWLOWERCASE, mapheaderinfo[gamemap - 1]->subttl);
 
 		// Set up the detail boxes.
 		{
@@ -4865,9 +4975,9 @@ static void M_DrawCenteredMenu(void)
 					cursory = y;
 
 				if ((currentMenu->menuitems[i].status & IT_DISPLAY)==IT_STRING)
-					V_DrawCenteredString(x, y, 0, currentMenu->menuitems[i].text);
+					V_DrawCenteredString(x, y, menuflags.lower, currentMenu->menuitems[i].text);
 				else
-					V_DrawCenteredString(x, y, V_YELLOWMAP, currentMenu->menuitems[i].text);
+					V_DrawCenteredString(x, y, menuflags.basic | menuflags.lower, currentMenu->menuitems[i].text);
 
 				// Cvar specific handling
 				switch(currentMenu->menuitems[i].status & IT_TYPE)
@@ -4882,7 +4992,7 @@ static void M_DrawCenteredMenu(void)
 								break;
 							case IT_CV_STRING:
 								M_DrawTextBox(x, y + 4, MAXSTRINGLENGTH, 1);
-								V_DrawString(x + 8, y + 12, V_ALLOWLOWERCASE, cv->string);
+								V_DrawString(x + 8, y + 12, menuflags.lower, cv->string);
 								if (skullAnimCounter < 4 && i == itemOn)
 									V_DrawCharacter(x + 8 + V_StringWidth(cv->string, 0), y + 12,
 										'_' | 0x80, false);
@@ -4890,13 +5000,13 @@ static void M_DrawCenteredMenu(void)
 								break;
 							default:
 								V_DrawString(BASEVIDWIDTH - x - V_StringWidth(cv->string, 0), y,
-									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
+									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? menuflags.warning : menuflags.basic) | menuflags.lower, cv->string);
 								if (i == itemOn)
 								{
 									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(cv->string, 0) - (skullAnimCounter/5), y,
-											'\x1C' | V_YELLOWMAP, false);
+											'\x1C' | menuflags.basic, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
-											'\x1D' | V_YELLOWMAP, false);
+											'\x1D' | menuflags.basic, false);
 								}
 								break;
 						}
@@ -4905,7 +5015,7 @@ static void M_DrawCenteredMenu(void)
 					y += STRINGHEIGHT;
 					break;
 			case IT_STRING2:
-				V_DrawCenteredString(x, y, 0, currentMenu->menuitems[i].text);
+				V_DrawCenteredString(x, y, menuflags.lower, currentMenu->menuitems[i].text);
 				/* FALLTHRU */
 			case IT_DYLITLSPACE:
 				y += SMALLLINEHEIGHT;
@@ -4914,7 +5024,7 @@ static void M_DrawCenteredMenu(void)
 				if (currentMenu->menuitems[i].alphaKey)
 					y = currentMenu->y+currentMenu->menuitems[i].alphaKey;
 
-				V_DrawCenteredString(x, y, V_TRANSLUCENT|V_OLDSPACING, M_CreateSecretMenuOption(currentMenu->menuitems[i].text));
+				V_DrawCenteredString(x, y, V_TRANSLUCENT | V_OLDSPACING, M_CreateSecretMenuOption(currentMenu->menuitems[i].text));
 				y += SMALLLINEHEIGHT;
 				break;
 			case IT_GRAYPATCH:
@@ -4937,7 +5047,7 @@ static void M_DrawCenteredMenu(void)
 	{
 		V_DrawScaledPatch(x - V_StringWidth(currentMenu->menuitems[itemOn].text, 0)/2 - 24, cursory, 0,
 			W_CachePatchName("M_CURSOR", PU_PATCH));
-		V_DrawCenteredString(x, cursory, V_YELLOWMAP, currentMenu->menuitems[itemOn].text);
+		V_DrawCenteredString(x, cursory, menuflags.basic | menuflags.lower, currentMenu->menuitems[itemOn].text);
 	}
 }
 
@@ -5382,9 +5492,9 @@ static boolean M_PrepareLevelPlatter(INT32 gt, boolean nextmappick)
 				if (headingisname)
 				{
 					if (actnum)
-						sprintf(levelselect.rows[row].mapnames[col], "ACT %d", actnum);
+						sprintf(levelselect.rows[row].mapnames[col], "Act %d", actnum);
 					else
-						sprintf(levelselect.rows[row].mapnames[col], "THE ACT");
+						sprintf(levelselect.rows[row].mapnames[col], "The Act");
 				}
 				else if (wide)
 				{
@@ -5438,7 +5548,7 @@ static boolean M_PrepareLevelPlatter(INT32 gt, boolean nextmappick)
 			if (!(mapheaderinfo[mapIterate]->levelflags & LF_NOZONE)
 				&& fastcmp(mapheaderinfo[mapIterate]->selectheading, mapheaderinfo[mapIterate]->lvlttl))
 			{
-				sprintf(levelselect.rows[headerRow].header + strlen(levelselect.rows[headerRow].header), " ZONE");
+				sprintf(levelselect.rows[headerRow].header + strlen(levelselect.rows[headerRow].header), " Zone");
 			}
 		}
 	}
@@ -5671,13 +5781,23 @@ static void M_HandleLevelPlatter(INT32 choice)
 
 void M_DrawLevelPlatterHeader(INT32 y, const char *header, boolean headerhighlight, boolean allowlowercase)
 {
+	(void)allowlowercase;
+	INT32 bar_colors[2];
+
+	if (menuflags.basic == V_INVERTMAP)
+		bar_colors[0] = 31, bar_colors[1] = 0;
+	else
+		bar_colors[0] = V_GetStringColormap(menuflags.basic)[3], bar_colors[1] = 31;
+
 	y += lsheadingheight - 12;
-	V_DrawString(19, y, (headerhighlight ? V_YELLOWMAP : 0)|(allowlowercase ? V_ALLOWLOWERCASE : 0), header);
+	V_DrawString(19, y, (headerhighlight ? menuflags.basic : 0) | menuflags.lower, header);
+
 	y += 9;
-	V_DrawFill(19, y, 281, 1, (headerhighlight ? yellowmap[3] : 3));
-	V_DrawFill(300, y, 1, 1, 26);
+	V_DrawFill(19, y, 281, 1, (headerhighlight ? bar_colors[0] : 3));
+	V_DrawFill(300, y, 1, 1, bar_colors[1]);
+
 	y++;
-	V_DrawFill(19, y, 282, 1, 26);
+	V_DrawFill(19, y, 282, 1, bar_colors[1]);
 }
 
 static void M_DrawLevelPlatterWideMap(UINT8 row, UINT8 col, INT32 x, INT32 y, boolean highlight)
@@ -5708,7 +5828,7 @@ static void M_DrawLevelPlatterWideMap(UINT8 row, UINT8 col, INT32 x, INT32 y, bo
 		((mapheaderinfo[map-1]->unlockrequired < 0)
 		? 159 : 63));
 
-	V_DrawString(x, y+50, (highlight ? V_YELLOWMAP : 0), levelselect.rows[row].mapnames[col]);
+	V_DrawString(x, y+50, (highlight ? menuflags.basic : 0) | V_ALLOWLOWERCASE, levelselect.rows[row].mapnames[col]);
 }
 
 static void M_DrawLevelPlatterMap(UINT8 row, UINT8 col, INT32 x, INT32 y, boolean highlight)
@@ -5740,9 +5860,9 @@ static void M_DrawLevelPlatterMap(UINT8 row, UINT8 col, INT32 x, INT32 y, boolea
 		? 159 : 63));
 
 	if (strlen(levelselect.rows[row].mapnames[col]) > 6) // "AERIAL GARDEN" vs "ACT 18" - "THE ACT" intentionally compressed
-		V_DrawThinString(x, y+50+1, (highlight ? V_YELLOWMAP : 0), levelselect.rows[row].mapnames[col]);
+		V_DrawThinString(x, y+50+1, (highlight ? menuflags.basic : 0) | V_ALLOWLOWERCASE, levelselect.rows[row].mapnames[col]);
 	else
-		V_DrawString(x, y+50, (highlight ? V_YELLOWMAP : 0), levelselect.rows[row].mapnames[col]);
+		V_DrawString(x, y+50, (highlight ? menuflags.basic : 0) | V_ALLOWLOWERCASE, levelselect.rows[row].mapnames[col]);
 }
 
 static void M_DrawLevelPlatterRow(UINT8 row, INT32 y)
@@ -5766,14 +5886,14 @@ static void M_DrawLevelPlatterRow(UINT8 row, INT32 y)
 		V_DrawFill(lsbasex,     y+50, 141, 8, gametypedesc[cv_newgametype.value].col[0]);
 		V_DrawFill(lsbasex+141, y+50, 141, 8, gametypedesc[cv_newgametype.value].col[1]);
 
-		V_DrawString(lsbasex, y+50, 0, gametype_cons_t[cv_newgametype.value].strvalue);
+		V_DrawString(lsbasex, y+50, V_ALLOWLOWERCASE, gametype_cons_t[cv_newgametype.value].strvalue);
 
 		if (!lsrow)
 		{
 			V_DrawCharacter(lsbasex - 10 - (skullAnimCounter/5), y+25,
-				'\x1C' | V_YELLOWMAP, false);
+				'\x1C' | menuflags.basic, false);
 			V_DrawCharacter(lsbasex+282 + 2 + (skullAnimCounter/5), y+25,
-				'\x1D' | V_YELLOWMAP, false);
+				'\x1D' | menuflags.basic, false);
 		}
 	}
 	else if (lswide(row))
@@ -6374,13 +6494,7 @@ static void M_LoadAddonsPatches(void)
 static void M_Addons(INT32 choice)
 {
 	const char *pathname = ".";
-
 	(void)choice;
-
-	// If M_GetGameypeColor() is ever ported from Kart, then remove this.
-	highlightflags = V_YELLOWMAP;
-	recommendedflags = V_GREENMAP;
-	warningflags = V_REDMAP;
 
 #if 1
 	if (cv_addons_option.value == 0)
@@ -6518,14 +6632,14 @@ static boolean M_AddonsRefresh(void)
 		{
 			S_StartSound(NULL, sfx_lose);
 			if (refreshdirmenu & REFRESHDIR_MAX)
-				message = va("%c%s\x80\nMaximum number of add-ons reached.\nA file could not be loaded.\nIf you wish to play with this add-on, restart the game to clear existing ones.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), refreshdirname);
+				message = va("%c%s\x80\nMaximum number of add-ons reached.\nA file could not be loaded.\nIf you wish to play with this add-on, restart the game to clear existing ones.\n\n(Press a key)\n", ('\x80' + (menuflags.basic >> V_CHARCOLORSHIFT)), refreshdirname);
 			else
-				message = va("%c%s\x80\nA file was not loaded.\nCheck the console log for more information.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), refreshdirname);
+				message = va("%c%s\x80\nA file was not loaded.\nCheck the console log for more information.\n\n(Press a key)\n", ('\x80' + (menuflags.basic >> V_CHARCOLORSHIFT)), refreshdirname);
 		}
 		else if (refreshdirmenu & (REFRESHDIR_WARNING|REFRESHDIR_ERROR))
 		{
 			S_StartSound(NULL, sfx_skid);
-			message = va("%c%s\x80\nA file was loaded with %s.\nCheck the console log for more information.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), refreshdirname, ((refreshdirmenu & REFRESHDIR_ERROR) ? "errors" : "warnings"));
+			message = va("%c%s\x80\nA file was loaded with %s.\nCheck the console log for more information.\n\n(Press a key)\n", ('\x80' + (menuflags.basic >> V_CHARCOLORSHIFT)), refreshdirname, ((refreshdirmenu & REFRESHDIR_ERROR) ? "errors" : "warnings"));
 		}
 
 		if (message)
@@ -6557,10 +6671,9 @@ static void M_DrawAddons(void)
 	}
 
 	if (Playing())
-		V_DrawCenteredString(BASEVIDWIDTH/2, 5, warningflags, "Adding files mid-game may cause problems.");
+		V_DrawCenteredString(BASEVIDWIDTH/2, 5, menuflags.warning, "Adding files mid-game may cause problems.");
 	else
-		V_DrawCenteredString(BASEVIDWIDTH/2, 5, 0, LOCATIONSTRING1);
-			// (recommendedflags == V_SKYMAP ? LOCATIONSTRING2 : LOCATIONSTRING1)
+		V_DrawCenteredString(BASEVIDWIDTH/2, 5, V_ALLOWLOWERCASE, LOCATIONSTRING1);
 
 #ifdef ENFORCE_WAD_LIMIT
 	if (numwadfiles <= mainwads+1)
@@ -6581,12 +6694,12 @@ static void M_DrawAddons(void)
 	x = currentMenu->x;
 	y = currentMenu->y + 1;
 
-	hilicol = 0; // white
+	hilicol = V_GetStringColormap(menuflags.basic)[3];
 
 #define boxwidth (MAXSTRINGLENGTH*8+6)
 
 	// draw the file path and the top white + black lines of the box
-	V_DrawString(x-21, (y - 16) + (lsheadingheight - 12), highlightflags|V_ALLOWLOWERCASE, M_AddonsHeaderPath());
+	V_DrawThinString(x-21, (y - 15) + (lsheadingheight - 12), menuflags.basic | V_ALLOWLOWERCASE, M_AddonsHeaderPath());
 	V_DrawFill(x-21, (y - 16) + (lsheadingheight - 3), boxwidth, 1, hilicol);
 	V_DrawFill(x-21, (y - 16) + (lsheadingheight - 2), boxwidth, 1, 30);
 
@@ -6632,11 +6745,11 @@ static void M_DrawAddons(void)
 
 	// draw up arrow that bobs up and down
 	if (t != 0)
-		V_DrawString(19, y+4 - (skullAnimCounter/5), highlightflags, "\x1A");
+		V_DrawString(19, y+4 - (skullAnimCounter/5), menuflags.basic, "\x1A");
 
 	// make the selection box flash yellow
 	if (skullAnimCounter < 4)
-		flashcol = V_GetStringColormap(highlightflags);
+		flashcol = V_GetStringColormap(menuflags.basic);
 
 	// draw icons and item names
 	for (i = t; i <= b; i++)
@@ -6659,7 +6772,7 @@ static void M_DrawAddons(void)
 			if ((size_t)i == dir_on[menudepthleft])
 			{
 				V_DrawFixedPatch((x-(16+4))<<FRACBITS, (y)<<FRACBITS, FRACUNIT/2, 0, addonsp[NUM_EXT+1], flashcol);
-				flags = V_ALLOWLOWERCASE|highlightflags;
+				flags = V_ALLOWLOWERCASE | menuflags.basic;
 			}
 
 			// draw name of the item, use ... if too long
@@ -6676,7 +6789,7 @@ static void M_DrawAddons(void)
 
 	// draw down arrow that bobs down and up
 	if (b != sizedirmenu - 1)
-		V_DrawString(19, y-12 + (skullAnimCounter/5), highlightflags, "\x1B");
+		V_DrawString(19, y-12 + (skullAnimCounter/5), menuflags.basic, "\x1B");
 
 	// draw search box
 	y = BASEVIDHEIGHT - currentMenu->y + 1;
@@ -6820,7 +6933,7 @@ static void M_HandleAddons(INT32 choice)
 								if (!preparefilemenu(false))
 								{
 									S_StartSound(NULL, sfx_skid);
-									M_StartMessage(va("%c%s\x80\nThis folder is empty.\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), M_AddonsHeaderPath()),NULL,MM_NOTHING);
+									M_StartMessage(va("%c%s\x80\nThis folder is empty.\n\n(Press a key)\n", ('\x80' + (menuflags.basic >> V_CHARCOLORSHIFT)), M_AddonsHeaderPath()),NULL,MM_NOTHING);
 									menupath[menupathindex[++menudepthleft]] = 0;
 
 									if (!preparefilemenu(true))
@@ -6839,7 +6952,7 @@ static void M_HandleAddons(INT32 choice)
 							else
 							{
 								S_StartSound(NULL, sfx_lose);
-								M_StartMessage(va("%c%s\x80\nThis folder is too deep to navigate to!\n\n(Press a key)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), M_AddonsHeaderPath()),NULL,MM_NOTHING);
+								M_StartMessage(va("%c%s\x80\nThis folder is too deep to navigate to!\n\n(Press a key)\n", ('\x80' + (menuflags.basic >> V_CHARCOLORSHIFT)), M_AddonsHeaderPath()),NULL,MM_NOTHING);
 								menupath[menupathindex[menudepthleft]] = 0;
 							}
 							break;
@@ -6853,7 +6966,7 @@ static void M_HandleAddons(INT32 choice)
 							}
 							break;
 						case EXT_TXT:
-							M_StartMessage(va("%c%s\x80\nThis file may not be a console script.\nAttempt to run anyways? \n\n(Press 'Y' to confirm)\n", ('\x80' + (highlightflags>>V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),M_AddonExec,MM_YESNO);
+							M_StartMessage(va("%c%s\x80\nThis file may not be a console script.\nAttempt to run anyways? \n\n(Press 'Y' to confirm)\n", ('\x80' + (menuflags.basic >> V_CHARCOLORSHIFT)), dirmenu[dir_on[menudepthleft]]+DIR_STRING),M_AddonExec,MM_YESNO);
 							break;
 						case EXT_CFG:
 							M_AddonExec(KEY_ENTER);
@@ -7228,12 +7341,12 @@ static void M_DrawChecklist(void)
 	// draw emblem counter
 	if (emblems > 0)
 	{
-		V_DrawString(42, 20, (emblems == emblemCount) ? V_GREENMAP : 0, va("%d/%d", emblemCount, emblems));
+		V_DrawString(42, 20, (emblems == emblemCount) ? menuflags.recommended : 0, va("%d/%d", emblemCount, emblems));
 		V_DrawSmallScaledPatch(28, 20, 0, W_CachePatchName("EMBLICON", PU_PATCH));
 	}
 
 	if (check_on)
-		V_DrawString(10, y-(skullAnimCounter/5), V_YELLOWMAP, "\x1A");
+		V_DrawString(10, y-(skullAnimCounter/5), menuflags.basic, "\x1A");
 
 	while (i < MAXUNLOCKABLES)
 	{
@@ -7245,7 +7358,7 @@ static void M_DrawChecklist(void)
 			continue;
 		}
 
-		V_DrawString(currentMenu->x, y, ((data->unlocked[i]) ? V_GREENMAP : V_TRANSLUCENT)|V_ALLOWLOWERCASE, ((data->unlocked[i] || !unlockables[i].nochecklist) ? unlockables[i].name : M_CreateSecretMenuOption(unlockables[i].name)));
+		V_DrawString(currentMenu->x, y, ((data->unlocked[i]) ? menuflags.recommended : V_TRANSLUCENT) | V_ALLOWLOWERCASE, ((data->unlocked[i] || !unlockables[i].nochecklist) ? unlockables[i].name : M_CreateSecretMenuOption(unlockables[i].name)));
 
 		for (j = i+1; j < MAXUNLOCKABLES; j++)
 		{
@@ -7280,7 +7393,7 @@ static void M_DrawChecklist(void)
 						if (cond[condnum].id != previd)
 						{
 							addy(8);
-							V_DrawString(currentMenu->x + 4, y, V_YELLOWMAP, "OR");
+							V_DrawString(currentMenu->x + 4, y, menuflags.basic, "OR");
 						}
 
 						addy(8);
@@ -7496,7 +7609,7 @@ static void M_DrawChecklist(void)
 
 finishchecklist:
 	if ((checklist_cangodown = ((y - currentMenu->y) > (scrollareaheight*2)))) // haaaaaaacks.
-		V_DrawString(10, currentMenu->y+(scrollareaheight*2)+(skullAnimCounter/5), V_YELLOWMAP, "\x1B");
+		V_DrawString(10, currentMenu->y+(scrollareaheight*2)+(skullAnimCounter/5), menuflags.basic, "\x1B");
 }
 
 #define NUMHINTS 5
@@ -7556,7 +7669,7 @@ static void M_DrawEmblemHints(void)
 
 	if (local > NUMHINTS*2){
 		if (itemOn == 0){
-			pageflag = V_YELLOWMAP;
+			pageflag = menuflags.basic;
 		}
 		V_DrawString(currentMenu->x + 40, currentMenu->y + 10, pageflag, va("%d of %d",hintpage, local/(NUMHINTS*2) + 1));
 	}
@@ -7566,7 +7679,7 @@ static void M_DrawEmblemHints(void)
 
 
 	if (!local)
-		V_DrawCenteredString(160, 48, V_YELLOWMAP, "No hidden emblems on this map.");
+		V_DrawCenteredString(160, 48, menuflags.basic, "No hidden emblems on this map.");
 	else for (i = 0; i < numemblems; i++)
 	{
 		emblem = &emblemlocations[i];
@@ -7579,7 +7692,7 @@ static void M_DrawEmblemHints(void)
 
 			if (clientGamedata->collected[i])
 			{
-				collected = V_GREENMAP;
+				collected = menuflags.recommended;
 				V_DrawMappedPatch(x, y+4, 0, W_CachePatchName(M_GetEmblemPatch(emblem, false), PU_PATCH),
 					R_GetTranslationColormap(TC_DEFAULT, M_GetEmblemColor(emblem), GTC_CACHE));
 			}
@@ -7913,10 +8026,10 @@ static void M_DrawSoundTest(void)
 		V_DrawFill(165+140-1, 60 + i, 1, m, 0);
 
 		if (t != 0)
-			V_DrawString(165+140+4, 60+4 - (skullAnimCounter/5), V_YELLOWMAP, "\x1A");
+			V_DrawString(165+140+4, 60+4 - (skullAnimCounter/5), menuflags.basic, "\x1A");
 
 		if (b != numsoundtestdefs - 1)
-			V_DrawString(165+140+4, 60+112-12 + (skullAnimCounter/5), V_YELLOWMAP, "\x1B");
+			V_DrawString(165+140+4, 60+112-12 + (skullAnimCounter/5), menuflags.basic, "\x1B");
 
 		x = 169;
 		y = 64;
@@ -7927,18 +8040,18 @@ static void M_DrawSoundTest(void)
 				V_DrawFill(165, y-4, 140-1, 16, 155);
 			if (!soundtestdefs[t]->allowed)
 			{
-				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE, "???");
+				V_DrawString(x, y, (t == st_sel ? menuflags.basic : 0)|V_ALLOWLOWERCASE, "???");
 			}
 			else if (soundtestdefs[t] == &soundtestsfx)
 			{
 				const char *sfxstr = va("SFX %s", cv_soundtest.string);
-				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0), sfxstr);
+				V_DrawString(x, y, (t == st_sel ? menuflags.basic : 0), sfxstr);
 				if (t == st_sel)
 				{
 					V_DrawCharacter(x - 10 - (skullAnimCounter/5), y,
-						'\x1C' | V_YELLOWMAP, false);
+						'\x1C' | menuflags.basic, false);
 					V_DrawCharacter(x + 2 + V_StringWidth(sfxstr, 0) + (skullAnimCounter/5), y,
-						'\x1D' | V_YELLOWMAP, false);
+						'\x1D' | menuflags.basic, false);
 				}
 
 				if (curplaying == soundtestdefs[t])
@@ -7946,17 +8059,17 @@ static void M_DrawSoundTest(void)
 					sfxstr = (cv_soundtest.value) ? S_sfx[cv_soundtest.value].name : "N/A";
 					i = V_StringWidth(sfxstr, 0);
 					V_DrawFill(165+140-9-i, y-4, i+8, 16, 150);
-					V_DrawRightAlignedString(165+140-5, y, V_YELLOWMAP, sfxstr);
+					V_DrawRightAlignedString(165+140-5, y, menuflags.basic, sfxstr);
 				}
 			}
 			else
 			{
-				V_DrawString(x, y, (t == st_sel ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE, soundtestdefs[t]->title);
+				V_DrawString(x, y, (t == st_sel ? menuflags.basic : 0)|V_ALLOWLOWERCASE, soundtestdefs[t]->title);
 				if (curplaying == soundtestdefs[t])
 				{
 					V_DrawFill(165+140-9, y-4, 8, 16, 150);
 					//V_DrawCharacter(165+140-8, y, '\x19' | V_YELLOWMAP, false);
-					V_DrawFixedPatch((165+140-9)<<FRACBITS, (y<<FRACBITS)-(bounce*4), FRACUNIT, 0, hu_font['\x19'-HU_FONTSTART], V_GetStringColormap(V_YELLOWMAP));
+					V_DrawFixedPatch((165+140-9)<<FRACBITS, (y<<FRACBITS)-(bounce*4), FRACUNIT, 0, hu_font['\x19'-HU_FONTSTART], V_GetStringColormap(menuflags.basic));
 				}
 			}
 			t++;
@@ -8435,16 +8548,16 @@ static void M_DrawLoadGameData(void)
 			x += 2;
 			y += 1;
 			V_DrawString(x, y,
-				((savetodraw == saveSlotSelected) ? V_YELLOWMAP : 0),
+				((savetodraw == saveSlotSelected) ? menuflags.basic : 0),
 				"NO FILE");
 			if (savetodraw == saveSlotSelected)
-				V_DrawFill(x, y+9, 80, 1, yellowmap[3]);
+				V_DrawFill(x, y+9, 80, 1, V_GetStringColormap(menuflags.basic)[3]);
 			y += 11;
 			V_DrawSmallScaledPatch(x, y, 0, savselp[4]);
 			M_DrawStaticBox(x, y, V_80TRANS, 80, 50);
 			y += 41;
 			if (ultimate_selectable)
-				V_DrawRightAlignedThinString(x + 79, y, V_REDMAP, "ULTIMATE.");
+				V_DrawRightAlignedThinString(x + 79, y, menuflags.warning, "ULTIMATE.");
 			else
 				V_DrawRightAlignedThinString(x + 79, y, V_GRAYMAP, "DON'T SAVE!");
 
@@ -8505,10 +8618,10 @@ static void M_DrawLoadGameData(void)
 		x += 2;
 		y += 1;
 		V_DrawString(x, y,
-			((savetodraw == saveSlotSelected-1) ? V_YELLOWMAP : 0),
+			((savetodraw == saveSlotSelected-1) ? menuflags.basic : 0),
 			va("FILE %d", savetodraw+1));
 		if (savetodraw == saveSlotSelected-1)
-				V_DrawFill(x, y+9, 80, 1, yellowmap[3]);
+				V_DrawFill(x, y+9, 80, 1, V_GetStringColormap(menuflags.basic)[3]);
 		y += 11;
 
 		// level image area
@@ -8540,11 +8653,11 @@ static void M_DrawLoadGameData(void)
 			if (savegameinfo[savetodraw].lives == -42)
 				V_DrawRightAlignedThinString(x + 79, y, V_GRAYMAP, "NEW GAME");
 			else if (savegameinfo[savetodraw].lives == -666)
-				V_DrawRightAlignedThinString(x + 79, y, V_REDMAP, "CAN'T LOAD!");
+				V_DrawRightAlignedThinString(x + 79, y, menuflags.warning, "CAN'T LOAD!");
 			else if (savegameinfo[savetodraw].gamemap & 8192)
-				V_DrawRightAlignedThinString(x + 79, y, V_GREENMAP, "CLEAR!");
+				V_DrawRightAlignedThinString(x + 79, y, menuflags.recommended, "CLEAR!");
 			else
-				V_DrawRightAlignedThinString(x + 79, y, V_YELLOWMAP, savegameinfo[savetodraw].levelname);
+				V_DrawRightAlignedThinString(x + 79, y, menuflags.basic, savegameinfo[savetodraw].levelname);
 		}
 
 		if (savegameinfo[savetodraw].lives == -42)
@@ -8557,7 +8670,7 @@ static void M_DrawLoadGameData(void)
 		if (savegameinfo[savetodraw].lives == -666)
 		{
 			if (!useContinues)
-				V_DrawRightAlignedThinString(x + 80, y+1+60+16, V_REDMAP, "????????");
+				V_DrawRightAlignedThinString(x + 80, y+1+60+16, menuflags.warning, "????????");
 			continue;
 		}
 
@@ -9678,7 +9791,7 @@ static void M_DrawStatsMaps(int location)
 	boolean dotopname = true, dobottomarrow = (location < statsMax);
 
 	if (location)
-		V_DrawString(10, y-(skullAnimCounter/5), V_YELLOWMAP, "\x1A");
+		V_DrawString(10, y-(skullAnimCounter/5), menuflags.basic, "\x1A");
 
 	while (statsMapList[++i] != -1)
 	{
@@ -9699,9 +9812,9 @@ static void M_DrawStatsMaps(int location)
 		M_DrawMapEmblems(mnum+1, 292, y, false);
 
 		if (mapheaderinfo[mnum]->actnum != 0)
-			V_DrawString(20, y, V_YELLOWMAP|V_ALLOWLOWERCASE, va("%s %d", mapheaderinfo[mnum]->lvlttl, mapheaderinfo[mnum]->actnum));
+			V_DrawString(20, y, menuflags.basic | V_ALLOWLOWERCASE, va("%s %d", mapheaderinfo[mnum]->lvlttl, mapheaderinfo[mnum]->actnum));
 		else
-			V_DrawString(20, y, V_YELLOWMAP|V_ALLOWLOWERCASE, mapheaderinfo[mnum]->lvlttl);
+			V_DrawString(20, y, menuflags.basic | V_ALLOWLOWERCASE, mapheaderinfo[mnum]->lvlttl);
 
 		y += 8;
 
@@ -9745,7 +9858,7 @@ static void M_DrawStatsMaps(int location)
 			else
 				V_DrawSmallScaledPatch(292, y, 0, W_CachePatchName("NEEDIT", PU_PATCH));
 
-			V_DrawString(20, y, V_YELLOWMAP|V_ALLOWLOWERCASE,
+			V_DrawString(20, y, menuflags.basic | V_ALLOWLOWERCASE,
 				(!data->extraCollected[i] && exemblem->showconditionset && !M_Achieved(exemblem->showconditionset, data))
 				? M_CreateSecretMenuOption(exemblem->description)
 				: exemblem->description);
@@ -9758,7 +9871,7 @@ static void M_DrawStatsMaps(int location)
 	}
 bottomarrow:
 	if (dobottomarrow)
-		V_DrawString(10, y-8 + (skullAnimCounter/5), V_YELLOWMAP, "\x1B");
+		V_DrawString(10, y-8 + (skullAnimCounter/5), menuflags.basic, "\x1B");
 }
 
 static void M_DrawLevelStats(void)
@@ -9776,7 +9889,7 @@ static void M_DrawLevelStats(void)
 
 	M_DrawMenuTitle();
 
-	V_DrawString(20, 24, V_YELLOWMAP, "Total Play Time:");
+	V_DrawString(20, 24, menuflags.basic, "Total Play Time:");
 	V_DrawCenteredString(BASEVIDWIDTH/2, 32, 0, va("%i hours, %i minutes, %i seconds",
 	                         G_TicsToHours(data->totalplaytime),
 	                         G_TicsToMinutes(data->totalplaytime, false),
@@ -9818,24 +9931,24 @@ static void M_DrawLevelStats(void)
 	V_DrawString(20, 48, 0, "Combined records:");
 
 	if (mapsunfinished)
-		V_DrawString(20, 56, V_REDMAP, va("(%d unfinished)", mapsunfinished));
+		V_DrawString(20, 56, menuflags.warning, va("(%d unfinished)", mapsunfinished));
 	else
-		V_DrawString(20, 56, V_GREENMAP, "(complete)");
+		V_DrawString(20, 56, menuflags.recommended, "(complete)");
 
 	V_DrawString(36, 64, 0, va("x %d/%d", M_CountEmblems(data), numemblems+numextraemblems));
 	V_DrawSmallScaledPatch(20, 64, 0, W_CachePatchName("EMBLICON", PU_PATCH));
 
 	sprintf(beststr, "%u", bestscore);
 	V_DrawString(BASEVIDWIDTH/2, 48, V_YELLOWMAP, "SCORE:");
-	V_DrawRightAlignedString(BASEVIDWIDTH-16, 48, (bestunfinished[0] ? V_REDMAP : 0), beststr);
+	V_DrawRightAlignedString(BASEVIDWIDTH-16, 48, (bestunfinished[0] ? menuflags.warning : 0), beststr);
 
 	sprintf(beststr, "%i:%02i:%02i.%02i", G_TicsToHours(besttime), G_TicsToMinutes(besttime, false), G_TicsToSeconds(besttime), G_TicsToCentiseconds(besttime));
 	V_DrawString(BASEVIDWIDTH/2, 56, V_YELLOWMAP, "TIME:");
-	V_DrawRightAlignedString(BASEVIDWIDTH-16, 56, (bestunfinished[1] ? V_REDMAP : 0), beststr);
+	V_DrawRightAlignedString(BASEVIDWIDTH-16, 56, (bestunfinished[1] ? menuflags.warning : 0), beststr);
 
 	sprintf(beststr, "%u", bestrings);
 	V_DrawString(BASEVIDWIDTH/2, 64, V_YELLOWMAP, "RINGS:");
-	V_DrawRightAlignedString(BASEVIDWIDTH-16, 64, (bestunfinished[2] ? V_REDMAP : 0), beststr);
+	V_DrawRightAlignedString(BASEVIDWIDTH-16, 64, (bestunfinished[2] ? menuflags.warning : 0), beststr);
 
 	M_DrawStatsMaps(statsLocation);
 }
@@ -9931,7 +10044,7 @@ void M_DrawTimeAttackMenu(void)
 		if (i == itemOn)
 			cursory = y;
 
-		V_DrawString(x, y, (dispstatus == IT_WHITESTRING) ? V_YELLOWMAP : 0 , currentMenu->menuitems[i].text);
+		V_DrawString(x, y, ((dispstatus == IT_WHITESTRING) ? menuflags.basic : 0) | menuflags.lower, currentMenu->menuitems[i].text);
 
 		// Cvar specific handling
 		if ((currentMenu->menuitems[i].status & IT_TYPE) == IT_CVAR)
@@ -9944,20 +10057,20 @@ void M_DrawTimeAttackMenu(void)
 				soffset = 80;
 
 			// Should see nothing but strings
-			V_DrawString(BASEVIDWIDTH - x - soffset - V_StringWidth(cv->string, 0), y, V_YELLOWMAP, cv->string);
+			V_DrawString(BASEVIDWIDTH - x - soffset - V_StringWidth(cv->string, 0), y, menuflags.basic | menuflags.lower, cv->string);
 			if (i == itemOn)
 			{
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - V_StringWidth(cv->string, 0) - (skullAnimCounter/5), y,
-					'\x1C' | V_YELLOWMAP, false);
+					'\x1C' | menuflags.basic, false);
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset + 2 + (skullAnimCounter/5), y,
-					'\x1D' | V_YELLOWMAP, false);
+					'\x1D' | menuflags.basic, false);
 			}
 		}
 	}
 
 	// DRAW THE SKULL CURSOR
 	V_DrawScaledPatch(currentMenu->x - 24, cursory, 0, W_CachePatchName("M_CURSOR", PU_PATCH));
-	V_DrawString(currentMenu->x, cursory, V_YELLOWMAP, currentMenu->menuitems[itemOn].text);
+	V_DrawString(currentMenu->x, cursory, menuflags.basic | menuflags.lower, currentMenu->menuitems[itemOn].text);
 
 	// Character face!
 	{
@@ -10011,12 +10124,12 @@ void M_DrawTimeAttackMenu(void)
 				/* Draw arrows !! */
 				y = y + 25 - 4;
 				V_DrawCharacter(216 - 10 - (skullAnimCounter/5), y,
-						'\x1C' | V_YELLOWMAP, false);
+						'\x1C' | menuflags.basic, false);
 				V_DrawCharacter(216 + 80 + 2 + (skullAnimCounter/5), y,
-						'\x1D' | V_YELLOWMAP, false);
+						'\x1D' | menuflags.basic, false);
 			}
 			// Draw press ESC to exit string on main record attack menu
-			V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetText("Press ESC to exit"));
+			V_DrawString(104-72, 180, V_TRANSLUCENT | menuflags.lower, M_GetText("Press ESC to exit"));
 		}
 
 		em = M_GetLevelEmblems(cv_nextmap.value);
@@ -10105,7 +10218,7 @@ void M_DrawTimeAttackMenu(void)
 
 		ncv = (consvar_t *)SP_TimeAttackMenu[taplayer].itemaction;
 		V_DrawString(x, y + SP_TimeAttackMenu[taplayer].alphaKey, V_TRANSLUCENT, SP_TimeAttackMenu[taplayer].text);
-		V_DrawString(BASEVIDWIDTH - x - V_StringWidth(ncv->string, 0), y + SP_TimeAttackMenu[taplayer].alphaKey, V_YELLOWMAP|V_TRANSLUCENT, ncv->string);
+		V_DrawString(BASEVIDWIDTH - x - V_StringWidth(ncv->string, 0), y + SP_TimeAttackMenu[taplayer].alphaKey, menuflags.basic | V_TRANSLUCENT, ncv->string);
 	}
 }
 
@@ -10211,7 +10324,7 @@ void M_DrawNightsAttackMenu(void)
 		if (i == itemOn)
 			cursory = y;
 
-		V_DrawString(x, y, (dispstatus == IT_WHITESTRING) ? V_YELLOWMAP : 0 , currentMenu->menuitems[i].text);
+		V_DrawString(x, y, ((dispstatus == IT_WHITESTRING) ? menuflags.basic : 0) | menuflags.lower, currentMenu->menuitems[i].text);
 
 		// Cvar specific handling
 		if ((currentMenu->menuitems[i].status & IT_TYPE) == IT_CVAR)
@@ -10224,20 +10337,20 @@ void M_DrawNightsAttackMenu(void)
 				soffset = 80;
 
 			// Should see nothing but strings
-			V_DrawString(BASEVIDWIDTH - x - soffset - V_StringWidth(cv->string, 0), y, V_YELLOWMAP, cv->string);
+			V_DrawString(BASEVIDWIDTH - x - soffset - V_StringWidth(cv->string, 0), y, menuflags.basic | menuflags.lower, cv->string);
 			if (i == itemOn)
 			{
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - V_StringWidth(cv->string, 0) - (skullAnimCounter/5), y,
-					'\x1C' | V_YELLOWMAP, false);
+					'\x1C' | menuflags.basic, false);
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset + 2 + (skullAnimCounter/5), y,
-					'\x1D' | V_YELLOWMAP, false);
+					'\x1D' | menuflags.basic, false);
 			}
 		}
 	}
 
 	// DRAW THE SKULL CURSOR
 	V_DrawScaledPatch(currentMenu->x - 24, cursory, 0, W_CachePatchName("M_CURSOR", PU_PATCH));
-	V_DrawString(currentMenu->x, cursory, V_YELLOWMAP, currentMenu->menuitems[itemOn].text);
+	V_DrawString(currentMenu->x, cursory, menuflags.basic | menuflags.lower, currentMenu->menuitems[itemOn].text);
 
 	// Level record list
 	if (cv_nextmap.value)
@@ -10275,12 +10388,12 @@ void M_DrawNightsAttackMenu(void)
 				/* Draw arrows !! */
 				y = y + 25 - 4;
 				V_DrawCharacter(208 - 10 - (skullAnimCounter/5), y,
-						'\x1C' | V_YELLOWMAP, false);
+						'\x1C' | menuflags.basic, false);
 				V_DrawCharacter(208 + 80 + 2 + (skullAnimCounter/5), y,
-						'\x1D' | V_YELLOWMAP, false);
+						'\x1D' | menuflags.basic, false);
 			}
 			// Draw press ESC to exit string on main record attack menu
-			V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetText("Press ESC to exit"));
+			V_DrawString(104-72, 180, V_TRANSLUCENT | menuflags.lower, M_GetText("Press ESC to exit"));
 		}
 
 		// Super Sonic
@@ -11008,7 +11121,7 @@ void M_DrawMarathon(void)
 		if (i == itemOn)
 			cursory = y;
 
-		V_DrawString(x, y, (dispstatus == IT_WHITESTRING) ? V_YELLOWMAP : 0 , currentMenu->menuitems[i].text);
+		V_DrawString(x, y, ((dispstatus == IT_WHITESTRING) ? menuflags.basic : 0) | menuflags.lower, currentMenu->menuitems[i].text);
 
 		cv = NULL;
 		cvstring = NULL;
@@ -11039,9 +11152,9 @@ void M_DrawMarathon(void)
 		// Cvar specific handling
 		if (cvstring)
 		{
-			INT32 flags = V_YELLOWMAP;
+			INT32 flags = menuflags.basic;
 			if (cv == &cv_dummymarathon && cv->value == 2) // ultimate_selectable
-				flags = V_REDMAP;
+				flags = menuflags.warning;
 
 			// Should see nothing but strings
 			if (cv == &cv_dummymarathon && cv->value == 1)
@@ -11057,9 +11170,9 @@ void M_DrawMarathon(void)
 			if (i == itemOn)
 			{
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset - 10 - w - (skullAnimCounter/5), y,
-					'\x1C' | V_YELLOWMAP, false);
+					'\x1C' | menuflags.basic, false);
 				V_DrawCharacter(BASEVIDWIDTH - x - soffset + 2 + (skullAnimCounter/5), y,
-					'\x1D' | V_YELLOWMAP, false);
+					'\x1D' | menuflags.basic, false);
 			}
 			if (work)
 				Z_Free(work);
@@ -11068,10 +11181,10 @@ void M_DrawMarathon(void)
 
 	// DRAW THE SKULL CURSOR
 	V_DrawScaledPatch(currentMenu->x - 24, cursory, 0, W_CachePatchName("M_CURSOR", PU_PATCH));
-	V_DrawString(currentMenu->x, cursory, V_YELLOWMAP, currentMenu->menuitems[itemOn].text);
+	V_DrawString(currentMenu->x, cursory, menuflags.basic | menuflags.lower, currentMenu->menuitems[itemOn].text);
 
 	// Draw press ESC to exit string on main record attack menu
-	V_DrawString(104-72, 180, V_TRANSLUCENT, M_GetText("Press ESC to exit"));
+	V_DrawString(104-72, 180, V_TRANSLUCENT | menuflags.lower, M_GetText("Press ESC to exit"));
 }
 
 // ========
@@ -11222,7 +11335,7 @@ static void M_DrawRoomMenu(void)
 	// use generic drawer for cursor, items and title
 	M_DrawGenericMenu();
 
-	V_DrawString(currentMenu->x - 16, currentMenu->y, V_YELLOWMAP, M_GetText("Select a room"));
+	V_DrawString(currentMenu->x - 16, currentMenu->y, menuflags.basic | V_ALLOWLOWERCASE, M_GetText("Select a room."));
 
 	if (m_waiting_mode == M_NOT_WAITING)
 	{
@@ -11664,10 +11777,10 @@ static void M_DrawServerMenu(void)
 		M_DrawLevelPlatterHeader(currentMenu->y - lsheadingheight/2, "Server settings", true, false);
 		if (ms_RoomId < 0)
 			V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + MP_ServerMenu[mp_server_room].alphaKey,
-			                         V_YELLOWMAP, (itemOn == mp_server_room) ? "<Select to change>" : "<Unlisted Mode>");
+			                         menuflags.basic | menuflags.lower, (itemOn == mp_server_room) ? "<Select to change>" : "<Unlisted Mode>");
 		else
 			V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + MP_ServerMenu[mp_server_room].alphaKey,
-			                         V_YELLOWMAP, room_list[menuRoomIndex].name);
+			                         menuflags.basic | menuflags.lower, room_list[menuRoomIndex].name);
 	}
 #endif
 
@@ -11850,13 +11963,13 @@ static void M_DrawMPMainMenu(void)
 	M_DrawGenericMenu();
 
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+66,
-		((itemOn == 4) ? V_YELLOWMAP : 0), va("(2-%d players)", MAXPLAYERS));
+		((itemOn == 4) ? menuflags.basic : 0) | menuflags.lower, va("(2-%d players)", MAXPLAYERS));
 
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+76,
-		((itemOn == 5) ? V_YELLOWMAP : 0), "(2 players)");
+		((itemOn == 5) ? menuflags.basic : 0) | menuflags.lower, "(2 Players)");
 
 	V_DrawRightAlignedString(BASEVIDWIDTH-x, y+116,
-		((itemOn == 8) ? V_YELLOWMAP : 0), "(splitscreen)");
+		((itemOn == 8) ? menuflags.basic : 0) | menuflags.lower, "(Splitscreen)");
 
 	M_DrawConnectIP();
 }
@@ -12222,15 +12335,15 @@ static void M_DrawSetupMultiPlayerMenu(void)
 
 	// draw skin string
 	V_DrawRightAlignedString(BASEVIDWIDTH - x, y,
-	             ((MP_PlayerSetupMenu[1].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0)|(itemOn == 1 ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE,
+	             ((MP_PlayerSetupMenu[1].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0)|(itemOn == 1 ? menuflags.basic : 0)|V_ALLOWLOWERCASE,
 	             skins[setupm_fakeskin].realname);
 
 	if (itemOn == 1 && (MP_PlayerSetupMenu[1].status & IT_TYPE) != IT_SPACE)
 	{
 		V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(skins[setupm_fakeskin].realname, V_ALLOWLOWERCASE) - (skullAnimCounter/5), y,
-			'\x1C' | V_YELLOWMAP, false);
+			'\x1C' | menuflags.basic, false);
 		V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
-			'\x1D' | V_YELLOWMAP, false);
+			'\x1D' | menuflags.basic, false);
 	}
 
 	x = colorgrid ? 92 : BASEVIDWIDTH/2;
@@ -12389,7 +12502,7 @@ colordraw:
 		// Draw color header & string
 		M_DrawLevelPlatterHeader(y - (lsheadingheight - 12), "Color...", true, false);
 		V_DrawRightAlignedString(BASEVIDWIDTH - x, y,
-								 ((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0)|(itemOn == 2 ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE,
+								 ((MP_PlayerSetupMenu[2].status & IT_TYPE) == IT_SPACE ? V_TRANSLUCENT : 0)|(itemOn == 2 ? menuflags.basic : 0)|V_ALLOWLOWERCASE,
 								 skincolors[setupm_fakecolor->color].name);
 
 		// Draw horizontal arrows
@@ -12399,9 +12512,9 @@ colordraw:
 			if ((MP_PlayerSetupMenu[2].status & IT_TYPE) != IT_SPACE)
 			{
 				V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(skincolors[setupm_fakecolor->color].name, V_ALLOWLOWERCASE) - (skullAnimCounter/5), y,
-					'\x1C' | V_YELLOWMAP, false);
+					'\x1C' | menuflags.basic, false);
 				V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
-					'\x1D' | V_YELLOWMAP, false);
+					'\x1D' | menuflags.basic, false);
 			}
 		}
 
@@ -12438,13 +12551,9 @@ colordraw:
 	x = MP_PlayerSetupDef.x;
 	y += 20;
 
-	V_DrawString(x, y,
-		((R_SkinAvailable(setupm_cvdefaultskin->string) != setupm_fakeskin
-		|| setupm_cvdefaultcolor->value != setupm_fakecolor->color)
-			? 0
-			: V_TRANSLUCENT)
-		| ((itemOn == 3) ? V_YELLOWMAP : 0),
-		"Save as default");
+	boolean setToDefault = (R_SkinAvailable(setupm_cvdefaultskin->string) != setupm_fakeskin || setupm_cvdefaultcolor->value != setupm_fakecolor->color);
+	V_DrawString(x, y, (setToDefault ? 0 : V_TRANSLUCENT) | ((itemOn == 3) ? menuflags.basic : 0) | menuflags.lower, "Save as default");
+
 	if (itemOn == 3)
 		cursory = y;
 
@@ -13354,9 +13463,9 @@ static void M_DrawControl(void)
 		                                     "PRESS ENTER TO CHANGE, BACKSPACE TO CLEAR"));
 
 	if (i)
-		V_DrawString(currentMenu->x - 16, y-(skullAnimCounter/5), V_YELLOWMAP, "\x1A"); // up arrow
+		V_DrawString(currentMenu->x - 16, y-(skullAnimCounter/5), menuflags.basic, "\x1A"); // up arrow
 	if (max != currentMenu->numitems)
-		V_DrawString(currentMenu->x - 16, y+(SMALLLINEHEIGHT*(controlheight-1))+(skullAnimCounter/5), V_YELLOWMAP, "\x1B"); // down arrow
+		V_DrawString(currentMenu->x - 16, y+(SMALLLINEHEIGHT*(controlheight-1))+(skullAnimCounter/5), menuflags.basic, "\x1B"); // down arrow
 
 	for (; i < max; i++)
 	{
@@ -13368,7 +13477,7 @@ static void M_DrawControl(void)
 
 		if (currentMenu->menuitems[i].status == IT_CONTROL)
 		{
-			V_DrawString(x, y, ((i == itemOn) ? V_YELLOWMAP : 0), currentMenu->menuitems[i].text);
+			V_DrawString(x, y, ((i == itemOn) ? menuflags.basic : 0) | menuflags.lower, currentMenu->menuitems[i].text);
 			keys[0] = setupcontrols[currentMenu->menuitems[i].alphaKey][0];
 			keys[1] = setupcontrols[currentMenu->menuitems[i].alphaKey][1];
 
@@ -13390,7 +13499,7 @@ static void M_DrawControl(void)
 
 
 			}
-			V_DrawRightAlignedString(BASEVIDWIDTH-currentMenu->x, y, V_YELLOWMAP, tmp);
+			V_DrawRightAlignedString(BASEVIDWIDTH-currentMenu->x, y, menuflags.basic | menuflags.lower, tmp);
 		}
 		/*else if (currentMenu->menuitems[i].status == IT_GRAYEDOUT2)
 			V_DrawString(x, y, V_TRANSLUCENT, currentMenu->menuitems[i].text);*/
@@ -13544,7 +13653,7 @@ static void M_DrawPlaystyleMenu(void)
 	for (i = 0; i < 4; i++)
 	{
 		if (i != 3)
-			V_DrawCenteredString((i+1)*BASEVIDWIDTH/4, 20, (i == playstyle_currentchoice) ? V_YELLOWMAP : 0, PlaystyleNames[i]);
+			V_DrawCenteredString((i+1)*BASEVIDWIDTH/4, 20, ((i == playstyle_currentchoice) ? menuflags.basic : 0) | menuflags.lower, PlaystyleNames[i]);
 
 		if (i == playstyle_currentchoice)
 		{
@@ -13701,7 +13810,7 @@ static void M_DrawMainVideoMenu(void)
 		if (itemOn == 7)
 			y -= 10;
 		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, y,
-		(SCR_IsAspectCorrect(vid.width, vid.height) ? V_GREENMAP : V_YELLOWMAP),
+		(SCR_IsAspectCorrect(vid.width, vid.height) ? menuflags.recommended : menuflags.basic),
 			va("%dx%d", vid.width, vid.height));
 	}
 }
@@ -13714,18 +13823,18 @@ static void M_DrawVideoMode(void)
 	// draw title
 	M_DrawMenuTitle();
 
-	V_DrawCenteredString(BASEVIDWIDTH/2, OP_VideoModeDef.y, V_YELLOWMAP, "Choose mode, reselect to change default");
-	V_DrawCenteredString(BASEVIDWIDTH/2, OP_VideoModeDef.y+8, V_YELLOWMAP, "Press F11 to toggle fullscreen");
+	V_DrawCenteredString(BASEVIDWIDTH/2, OP_VideoModeDef.y, menuflags.basic | V_ALLOWLOWERCASE, "Choose mode, reselect to change default.");
+	V_DrawCenteredString(BASEVIDWIDTH/2, OP_VideoModeDef.y+8, menuflags.basic | V_ALLOWLOWERCASE, "Press F11 to toggle fullscreen.");
 
 	row = 41;
 	col = OP_VideoModeDef.y + 24;
 	for (i = 0; i < vidm_nummodes; i++)
 	{
 		if (i == vidm_selected)
-			V_DrawString(row, col, V_YELLOWMAP, modedescs[i].desc);
+			V_DrawString(row, col, menuflags.basic | V_ALLOWLOWERCASE, modedescs[i].desc);
 		// Show multiples of 320x200 as green.
 		else
-			V_DrawString(row, col, (modedescs[i].goodratio) ? V_GREENMAP : 0, modedescs[i].desc);
+			V_DrawString(row, col, ((modedescs[i].goodratio) ? menuflags.recommended : 0) | V_ALLOWLOWERCASE, modedescs[i].desc);
 
 		col += 8;
 		if ((i % vidm_column_size) == (vidm_column_size-1))
@@ -13769,11 +13878,11 @@ static void M_DrawVideoMode(void)
 				cv_scr_width_w.value, cv_scr_height_w.value));
 
 		V_DrawCenteredString(BASEVIDWIDTH/2, OP_VideoModeDef.y + 138,
-			V_GREENMAP, "Green modes are recommended.");
+			menuflags.recommended | V_ALLOWLOWERCASE, va("%s colored modes are recommended.", (menuflags.recommended == V_SKYMAP) ? "Green" : "Sky-Blue"));
 		V_DrawCenteredString(BASEVIDWIDTH/2, OP_VideoModeDef.y + 146,
-			V_YELLOWMAP, "Other modes may have visual errors.");
+			V_YELLOWMAP | V_ALLOWLOWERCASE, "Other modes may have visual errors.");
 		V_DrawCenteredString(BASEVIDWIDTH/2, OP_VideoModeDef.y + 158,
-			V_YELLOWMAP, "Larger modes may have performance issues.");
+			menuflags.warning | V_ALLOWLOWERCASE, "Larger modes may have performance issues.");
 	}
 
 	// Draw the cursor for the VidMode menu
@@ -13823,9 +13932,9 @@ static void M_DrawColorMenu(void)
 	}
 
 	if (i)
-		V_DrawString(currentMenu->x - 20, currentMenu->y - (skullAnimCounter/5), V_YELLOWMAP, "\x1A"); // up arrow
+		V_DrawString(currentMenu->x - 20, currentMenu->y - (skullAnimCounter/5), menuflags.basic, "\x1A"); // up arrow
 	if (max != currentMenu->numitems)
-		V_DrawString(currentMenu->x - 20, currentMenu->y + 2*scrollareaheight + (skullAnimCounter/5), V_YELLOWMAP, "\x1B"); // down arrow
+		V_DrawString(currentMenu->x - 20, currentMenu->y + 2*scrollareaheight + (skullAnimCounter/5), menuflags.basic, "\x1B"); // down arrow
 
 	// draw title (or big pic)
 	M_DrawMenuTitle();
@@ -13851,9 +13960,9 @@ static void M_DrawColorMenu(void)
 			case IT_STRING:
 			case IT_WHITESTRING:
 				if (i != itemOn && (currentMenu->menuitems[i].status & IT_DISPLAY)==IT_STRING)
-					V_DrawString(x, y, 0, currentMenu->menuitems[i].text);
+					V_DrawString(x, y, menuflags.lower, currentMenu->menuitems[i].text);
 				else
-					V_DrawString(x, y, V_YELLOWMAP, currentMenu->menuitems[i].text);
+					V_DrawString(x, y, menuflags.basic | menuflags.lower, currentMenu->menuitems[i].text);
 
 				// Cvar specific handling
 				switch (currentMenu->menuitems[i].status & IT_TYPE)
@@ -13879,13 +13988,13 @@ static void M_DrawColorMenu(void)
 								break;
 							default:
 								V_DrawRightAlignedString(BASEVIDWIDTH - x, y,
-									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? V_REDMAP : V_YELLOWMAP), cv->string);
+									((cv->flags & CV_CHEAT) && !CV_IsSetToDefault(cv) ? menuflags.warning : menuflags.basic) | menuflags.lower, cv->string);
 								if (i == itemOn)
 								{
 									V_DrawCharacter(BASEVIDWIDTH - x - 10 - V_StringWidth(cv->string, 0) - (skullAnimCounter/5), y,
-											'\x1C' | V_YELLOWMAP, false);
+											'\x1C' | menuflags.basic, false);
 									V_DrawCharacter(BASEVIDWIDTH - x + 2 + (skullAnimCounter/5), y,
-											'\x1D' | V_YELLOWMAP, false);
+											'\x1D' | menuflags.basic, false);
 								}
 								break;
 						}
@@ -14013,12 +14122,12 @@ static void M_DrawScreenshotMenu(void)
 {
 	M_DrawGenericScrollMenu();
 #ifdef HWRENDER
-	if ((rendermode == render_opengl) && (itemOn < 7)) // where it starts to go offscreen; change this number if you change the layout of the screenshot menu
+	if ((rendermode == render_opengl) && (itemOn < 6)) // where it starts to go offscreen; change this number if you change the layout of the screenshot menu
 	{
 		INT32 y = currentMenu->y+currentMenu->menuitems[op_screenshot_colorprofile].alphaKey*2;
-		if (itemOn == 6)
+		if (itemOn == 5)
 			y -= 10;
-		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, y, V_REDMAP, "Yes");
+		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, y, menuflags.warning | menuflags.lower, "Yes");
 	}
 #endif
 }
@@ -14055,13 +14164,13 @@ static void M_DrawMonitorToggles(void)
 		M_DrawSlider(currentMenu->x + 20, y, cv, (i == itemOn));
 
 		if (!cv->value)
-			V_DrawRightAlignedString(312, y, V_OLDSPACING|((i == itemOn) ? V_YELLOWMAP : 0), "None");
+			V_DrawRightAlignedString(312, y, V_OLDSPACING|((i == itemOn) ? menuflags.basic : 0), "None");
 		else
-			V_DrawRightAlignedString(312, y, V_OLDSPACING|((i == itemOn) ? V_YELLOWMAP : 0), va("%3d%%", (cv->value*100)/sum));
+			V_DrawRightAlignedString(312, y, V_OLDSPACING|((i == itemOn) ? menuflags.basic : 0), va("%3d%%", (cv->value*100)/sum));
 	}
 
 	if (cheating)
-		V_DrawCenteredString(BASEVIDWIDTH/2, currentMenu->y, V_REDMAP, "* MODIFIED, CHEATS ENABLED *");
+		V_DrawCenteredString(BASEVIDWIDTH/2, currentMenu->y, menuflags.warning, "* MODIFIED, CHEATS ENABLED *");
 }
 
 // =========
