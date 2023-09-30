@@ -11,6 +11,7 @@ Hello! This repository stores a custom build of [SRB2](https://srb2.org/), which
 > * Input display, everywhere! ***(positions are free to modify)***
 > * Game detects when your build version is outdated ***(coming soon!!!)***
 > * Redesigned scoreboard ***(coming soon too!!!)***
+> Server preview before connecting to one ***(a hard coming soon)***
 
 ## Changes that maybe nobody cares about
 > * Tranlucency support for `V_DrawFill` (See MR [#1881](https://git.do.srb2.org/STJr/SRB2/-/merge_requests/1881))
