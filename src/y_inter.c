@@ -976,12 +976,19 @@ skiptallydrawer:
 		return;
 
 	if (timer)
-		V_DrawCenteredString(BASEVIDWIDTH/2, 188, V_YELLOWMAP,
-			va("start in %d seconds", timer/TICRATE));
+	{
+		V_DrawFill(0, 186, vid.width, 16, 31 | V_SNAPTOLEFT | V_SNAPTOBOTTOM | V_40TRANS);
+		V_DrawCenteredThinString(BASEVIDWIDTH / 2, 190, V_ALLOWLOWERCASE | V_SNAPTOBOTTOM, va("%cSpeeding off in %c%d.%02d%c...", 0x82, 0x86, timer / TICRATE, G_TicsToCentiseconds(timer), 0x82));
+	}
 
 	// Make it obvious that scrambling is happening next round.
-	if (cv_scrambleonchange.value && cv_teamscramble.value && (intertic/TICRATE % 2 == 0))
-		V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, V_YELLOWMAP, M_GetText("Teams will be scrambled next round!"));
+	if (cv_scrambleonchange.value && cv_teamscramble.value)
+	{
+		V_DrawFill(0, 0, vid.width, 14, 31 | V_SNAPTOLEFT | V_TRANSLUCENT);
+
+		INT32 alpha = 10 - abs(((intertic / 3) % 20) - 10);
+		V_DrawCenteredThinString(BASEVIDWIDTH / 2, 4, V_YELLOWMAP | V_ALLOWLOWERCASE | (alpha << V_ALPHASHIFT), M_GetText("Teams will be scrambled next round!"));
+	}
 }
 
 //
