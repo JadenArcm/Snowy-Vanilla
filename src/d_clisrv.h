@@ -343,7 +343,7 @@ typedef struct
 } serverelem_t;
 
 extern serverelem_t serverlist[MAXSERVERLIST];
-extern UINT32 serverlistcount;
+extern UINT32 serverlistcount, serverlistultimatecount;
 extern INT32 mapchangepending;
 
 // Points inside doomcom
@@ -428,6 +428,7 @@ void CL_Reset(void);
 void CL_ClearPlayer(INT32 playernum);
 void CL_QueryServerList(msg_server_t *list);
 void CL_UpdateServerList(boolean internetsearch, INT32 room);
+void CL_TimeoutServerList(void);
 void CL_RemovePlayer(INT32 playernum, kickreason_t reason);
 // Is there a game running
 boolean Playing(void);

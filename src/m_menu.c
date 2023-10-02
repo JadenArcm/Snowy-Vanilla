@@ -90,7 +90,7 @@
 #define SMALLLINEHEIGHT 8
 #define SLIDER_RANGE 9
 #define SLIDER_WIDTH 78
-#define SERVERS_PER_PAGE 11
+#define SERVERS_PER_PAGE 8
 
 typedef enum
 {
@@ -151,6 +151,8 @@ UINT8 maplistoption = 0;
 static char joystickInfo[MAX_JOYSTICKS+1][29];
 #ifndef NONET
 static UINT32 serverlistpage;
+static UINT32 oldserverlistpage;
+static float serverlistslidex;
 #endif
 
 static UINT8 numsaves = 0;
@@ -4025,6 +4027,8 @@ void M_Ticker(void)
 	}
 	I_unlock_mutex(ms_ServerList_mutex);
 #endif
+
+	CL_TimeoutServerList();
 }
 
 //
@@ -11245,8 +11249,10 @@ static void M_EndGame(INT32 choice)
 // Connect Menu
 //===========================================================================
 
-#define SERVERHEADERHEIGHT 44
-#define SERVERLINEHEIGHT 12
+#define SERVERHEADERHEIGHT 50
+#define SERVERLINEHEIGHT 16
+
+#define SCALEDVIEWWIDTH (vid.width / vid.dupx)
 
 #define S_LINEY(n) currentMenu->y + SERVERHEADERHEIGHT + (n * SERVERLINEHEIGHT)
 
@@ -11263,10 +11269,12 @@ static void M_HandleServerPage(INT32 choice)
 			M_NextOpt();
 			S_StartSound(NULL, sfx_menu1);
 			break;
+
 		case KEY_UPARROW:
 			M_PrevOpt();
 			S_StartSound(NULL, sfx_menu1);
 			break;
+
 		case KEY_BACKSPACE:
 		case KEY_ESCAPE:
 			exitmenu = true;
@@ -11274,14 +11282,23 @@ static void M_HandleServerPage(INT32 choice)
 
 		case KEY_ENTER:
 		case KEY_RIGHTARROW:
-			S_StartSound(NULL, sfx_menu1);
 			if ((serverlistpage + 1) * SERVERS_PER_PAGE < serverlistcount)
-				serverlistpage++;
+			{
+				oldserverlistpage = serverlistpage++;
+				serverlistslidex = SCALEDVIEWWIDTH;
+
+				S_StartSoundAtVolume(NULL, sfx_s3kb7, 128);
+			}
 			break;
+
 		case KEY_LEFTARROW:
-			S_StartSound(NULL, sfx_menu1);
 			if (serverlistpage > 0)
-				serverlistpage--;
+			{
+				oldserverlistpage = serverlistpage--;
+				serverlistslidex = -(SCALEDVIEWWIDTH);
+
+				S_StartSoundAtVolume(NULL, sfx_s3kb7, 128);
+			}
 			break;
 
 		default:
@@ -11308,6 +11325,7 @@ static void M_Refresh(INT32 choice)
 {
 	(void)choice;
 
+#if 0
 	// Display a little "please wait" message.
 	M_DrawTextBox(52, BASEVIDHEIGHT/2-10, 25, 3);
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, 0, "Searching for servers...");
@@ -11316,6 +11334,7 @@ static void M_Refresh(INT32 choice)
 	I_UpdateNoBlit();
 	if (rendermode == render_soft)
 		I_FinishUpdate(); // page flip or blit buffer
+#endif
 
 	// note: this is the one case where 0 is a valid room number
 	// because it corresponds to "All"
@@ -11381,89 +11400,135 @@ static void M_DrawRoomMenu(void)
 	if (m_waiting_mode)
 	{
 		// Display a little "please wait" message.
-		M_DrawTextBox(52, BASEVIDHEIGHT/2-10, 25, 3);
+		M_DrawTextBox(52, (BASEVIDHEIGHT / 2) - 10, 25, 3);
 		if (m_waiting_mode == M_WAITING_VERSION)
 			waiting_message = "Checking for updates...";
 		else
 			waiting_message = "Fetching room info...";
-		V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, 0, waiting_message);
-		V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2)+12, 0, "Please wait.");
+
+		V_DrawCenteredString(BASEVIDWIDTH / 2, BASEVIDHEIGHT / 2, 0, waiting_message);
+		V_DrawCenteredString(BASEVIDWIDTH / 2, (BASEVIDHEIGHT / 2) + 12, 0, "Please wait.");
+	}
+}
+
+static void M_DrawServerInformation(INT32 y)
+{
+	const char *text;
+	INT32 radius, center = BASEVIDWIDTH / 2;
+
+	switch (m_waiting_mode)
+	{
+		case M_WAITING_VERSION:
+			text = "Checking for updates...";
+			break;
+
+		case M_WAITING_SERVERS:
+			text = "Loading server list...";
+			break;
+
+		default:
+			if (serverlistultimatecount > serverlistcount)
+			{
+				text = va("%d/%d Servers found\x82%.*s",
+						serverlistcount,
+						serverlistultimatecount,
+						(I_GetTime() / 20) % 4, "...");
+			}
+
+			if (!serverlistcount)
+				text = "No Servers found.";
+			else
+				text = va("%d Servers found.", serverlistcount);
+
+			break;
+	}
+
+	radius = V_StringWidth(text, 0) / 2;
+	V_DrawCenteredString(center, y, V_ALLOWLOWERCASE, text);
+
+	// Horizontal lines or whatever.
+	V_DrawFill(0, y + 4, SCALEDVIEWWIDTH - (radius * 7), 1, V_SNAPTOLEFT);
+
+	V_DrawFill(0, y + 4, (center - radius) - 2, 1, 0);
+	V_DrawFill((center + radius) + 2, y + 4, BASEVIDWIDTH - 1, 1, 0);
+}
+
+static void M_DrawServerLists(INT32 x, INT32 page)
+{
+	for (UINT16 i = 0; i < min(serverlistcount - page * SERVERS_PER_PAGE, SERVERS_PER_PAGE); i++)
+	{
+		INT32 slindex = i + serverlistpage * SERVERS_PER_PAGE;
+		serverinfo_pak *info = &serverlist[slindex].info;
+
+		INT32 y = S_LINEY(i);
+		UINT32 globalflags = (info->refusereason ? V_TRANSLUCENT : 0) | ((itemOn == (FIRSTSERVERLINE + i)) ? menuflags.basic : 0) | V_ALLOWLOWERCASE;
+
+		INT32 roffs = (x + 254);
+		const char *modded_state = (info->modifiedgame) ? "\x85Modified" : "\x8AVanilla";
+
+		V_DrawThinString(x + 26, y, globalflags, info->servername);
+		HU_drawPing(x + 10, y + 3, info->time, false, (globalflags &~ V_ALLOWLOWERCASE));
+
+		V_DrawSmallString(x + 26, y + 7, globalflags, va("%s", info->gametypename));
+
+		V_DrawRightAlignedThinString(roffs, y, globalflags, va("[%d - %d]", info->numberofplayer, info->maxplayer));
+		V_DrawRightAlignedSmallString(roffs, y + 7, globalflags, modded_state);
+
+		if (info->cheatsenabled)
+			V_DrawRightAlignedSmallString(roffs - (V_SmallStringWidth(modded_state, 0) + 1), y + 7, globalflags, va("%cCheats%c / ", '\x83', '\x80'));
+
+		MP_ConnectMenu[i + FIRSTSERVERLINE].status = IT_STRING | IT_CALL;
 	}
 }
 
 static void M_DrawConnectMenu(void)
 {
 	UINT16 i;
-	char *gt;
-	INT32 numPages = (serverlistcount+(SERVERS_PER_PAGE-1))/SERVERS_PER_PAGE;
+	INT32 numPages = (serverlistcount + (SERVERS_PER_PAGE - 1)) / SERVERS_PER_PAGE;
+	INT32 currentPage = serverlistpage + 1;
 
-	for (i = FIRSTSERVERLINE; i < min(localservercount, SERVERS_PER_PAGE)+FIRSTSERVERLINE; i++)
+	const char *roomName = (ms_RoomId < 0) ? ((itemOn == mp_connect_room) ? "<Select to change>" : "<Unlisted Mode>") : room_list[menuRoomIndex].name;
+	for (i = FIRSTSERVERLINE; i < (min(localservercount, SERVERS_PER_PAGE) + FIRSTSERVERLINE); i++)
 		MP_ConnectMenu[i].status = IT_STRING | IT_SPACE;
 
 	if (!numPages)
 		numPages = 1;
 
-	// Room name
-	if (ms_RoomId < 0)
-		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + MP_ConnectMenu[mp_connect_room].alphaKey,
-		                         V_YELLOWMAP, (itemOn == mp_connect_room) ? "<Select to change>" : "<Unlisted Mode>");
-	else
-		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + MP_ConnectMenu[mp_connect_room].alphaKey,
-		                         V_YELLOWMAP, room_list[menuRoomIndex].name);
+	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + MP_ConnectMenu[mp_connect_room].alphaKey, menuflags.basic | V_ALLOWLOWERCASE, roomName);
+	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + MP_ConnectMenu[mp_connect_page].alphaKey, menuflags.basic | V_ALLOWLOWERCASE, va("%u / %d", currentPage, numPages));
 
-	// Page num
-	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + MP_ConnectMenu[mp_connect_page].alphaKey,
-	                         V_YELLOWMAP, va("%u of %d", serverlistpage+1, numPages));
-
-	// Horizontal line!
-	V_DrawFill(1, currentMenu->y+40, 318, 1, 0);
-
-	if (serverlistcount <= 0)
-		V_DrawString(currentMenu->x,currentMenu->y+SERVERHEADERHEIGHT, 0, "No servers found");
-	else
-	for (i = 0; i < min(serverlistcount - serverlistpage * SERVERS_PER_PAGE, SERVERS_PER_PAGE); i++)
+	if (itemOn == mp_connect_page)
 	{
-		INT32 slindex = i + serverlistpage * SERVERS_PER_PAGE;
-		UINT32 globalflags = (serverlist[slindex].info.refusereason ? V_TRANSLUCENT : 0)
-			|((itemOn == FIRSTSERVERLINE+i) ? V_YELLOWMAP : 0)|V_ALLOWLOWERCASE;
+		if (currentPage > 1)
+			V_DrawCharacter((((BASEVIDWIDTH - 10) - currentMenu->x) - V_StringWidth(va("%u / %d", currentPage, numPages), 0)) - (skullAnimCounter / 5), currentMenu->y + MP_ConnectMenu[mp_connect_page].alphaKey, '\x1C' | menuflags.basic, true);
 
-		V_DrawString(currentMenu->x, S_LINEY(i), globalflags, serverlist[slindex].info.servername);
-
-		// Don't use color flags intentionally, the global yellow color will auto override the text color code
-		if (serverlist[slindex].info.modifiedgame)
-			V_DrawSmallString(currentMenu->x+202, S_LINEY(i)+8, globalflags, "\x85" "Mod");
-		if (serverlist[slindex].info.cheatsenabled)
-			V_DrawSmallString(currentMenu->x+222, S_LINEY(i)+8, globalflags, "\x83" "Cheats");
-
-		V_DrawSmallString(currentMenu->x, S_LINEY(i)+8, globalflags,
-		                     va("Ping: %u", (UINT32)LONG(serverlist[slindex].info.time)));
-
-		gt = serverlist[slindex].info.gametypename;
-
-		V_DrawSmallString(currentMenu->x+46,S_LINEY(i)+8, globalflags,
-		                         va("Players: %02d/%02d", serverlist[slindex].info.numberofplayer, serverlist[slindex].info.maxplayer));
-
-		if (strlen(gt) > 11)
-			gt = va("Gametype: %.11s...", gt);
-		else
-			gt = va("Gametype: %s", gt);
-
-		V_DrawSmallString(currentMenu->x+112, S_LINEY(i)+8, globalflags, gt);
-
-		MP_ConnectMenu[i+FIRSTSERVERLINE].status = IT_STRING | IT_CALL;
+		if (currentPage != numPages)
+			V_DrawCharacter(((BASEVIDWIDTH + 2) - currentMenu->x) + (skullAnimCounter / 5), currentMenu->y + MP_ConnectMenu[mp_connect_page].alphaKey, '\x1D' | menuflags.basic, true);
 	}
+
+	M_DrawServerInformation(currentMenu->y + 38);
+
+	if (oldserverlistpage != serverlistpage)
+	{
+		const float ease = serverlistslidex / 2.f;
+		const INT32 offx = (serverlistslidex > 0) ? SCALEDVIEWWIDTH : -(SCALEDVIEWWIDTH);
+		const INT32 x = FixedInt(FLOAT_TO_FIXED(serverlistslidex) + ease * rendertimefrac) + 2;
+
+		M_DrawServerLists(currentMenu->x + x - offx, oldserverlistpage);
+		M_DrawServerLists(currentMenu->x + x, serverlistpage);
+
+		{
+			serverlistslidex -= ease;
+
+			if ((INT32)serverlistslidex == 0)
+				oldserverlistpage = serverlistpage;
+		}
+	}
+	else
+		M_DrawServerLists(currentMenu->x + 2, serverlistpage);
 
 	localservercount = serverlistcount;
-
 	M_DrawGenericMenu();
-
-	if (m_waiting_mode)
-	{
-		// Display a little "please wait" message.
-		M_DrawTextBox(52, BASEVIDHEIGHT/2-10, 25, 3);
-		V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, 0, "Searching for servers...");
-		V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2)+12, 0, "Please wait.");
-	}
 }
 
 static boolean M_CancelConnect(void)
