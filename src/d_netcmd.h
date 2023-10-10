@@ -81,6 +81,10 @@ extern consvar_t cv_mute;
 extern consvar_t cv_killingdead;
 extern consvar_t cv_pause;
 
+// Vainile: Input extensions
+extern consvar_t cv_showinput, cv_showinputjoy, cv_respectinputpositions;
+extern consvar_t cv_inputxposition, cv_inputyposition, cv_inputflags;
+
 extern consvar_t cv_restrictskinchange, cv_allowteamchange, cv_respawntime;
 
 extern consvar_t cv_teleporters, cv_superring, cv_supersneakers, cv_invincibility;

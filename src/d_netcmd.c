@@ -203,7 +203,32 @@ static CV_PossibleValue_t matchboxes_cons_t[] = {{0, "Normal"}, {1, "Mystery"}, 
 static CV_PossibleValue_t chances_cons_t[] = {{0, "MIN"}, {9, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t pause_cons_t[] = {{0, "Server"}, {1, "All"}, {0, NULL}};
 
-consvar_t cv_showinputjoy = CVAR_INIT ("showinputjoy", "Off", CV_ALLOWLUA, CV_OnOff, NULL);
+// Vainile: Input extensions
+consvar_t cv_showinput = CVAR_INIT ("showinput", "Off", CV_SAVE | CV_ALLOWLUA, CV_OnOff, NULL);
+consvar_t cv_showinputjoy = CVAR_INIT ("showinputjoy", "Off", CV_SAVE | CV_ALLOWLUA, CV_OnOff, NULL);
+consvar_t cv_respectinputpositions = CVAR_INIT ("respectinputpositions", "On", CV_SAVE, CV_YesNo, NULL);
+
+static CV_PossibleValue_t input_xposition_cons_t[] = {{0, "MIN"}, {320, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t input_yposition_cons_t[] = {{0, "MIN"}, {200, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t input_flags_cons_t[] = {
+	{0, "None"},
+
+	{V_SNAPTOLEFT,   "Left"},
+	{V_SNAPTOTOP,    "Top"},
+	{V_SNAPTORIGHT,  "Right"},
+	{V_SNAPTOBOTTOM, "Bottom"},
+
+	{V_SNAPTOLEFT  | V_SNAPTOTOP,    "Top-Left"},
+	{V_SNAPTORIGHT | V_SNAPTOTOP,    "Top-Right"},
+	{V_SNAPTORIGHT | V_SNAPTOBOTTOM, "Bottom-Right"},
+	{V_SNAPTOLEFT  | V_SNAPTOBOTTOM, "Bottom-Left"},
+
+	{0, NULL},
+};
+
+consvar_t cv_inputxposition = CVAR_INIT ("input_xposition", "16", CV_SAVE, input_xposition_cons_t, NULL);
+consvar_t cv_inputyposition = CVAR_INIT ("input_yposition", "155", CV_SAVE, input_yposition_cons_t, NULL);
+consvar_t cv_inputflags = CVAR_INIT ("input_flags", "Bottom-Left", CV_SAVE, input_flags_cons_t, NULL);
 
 #ifdef NETGAME_DEVMODE
 static consvar_t cv_fishcake = CVAR_INIT ("fishcake", "Off", CV_CALL|CV_NOSHOWHELP|CV_RESTRICT, CV_OnOff, Fishcake_OnChange);
@@ -727,7 +752,15 @@ void D_RegisterClientCommands(void)
 	CV_RegisterVar(&cv_timetic);
 	CV_RegisterVar(&cv_powerupdisplay);
 	CV_RegisterVar(&cv_itemfinder);
+
+	// Vainile: Input extensions
+	CV_RegisterVar(&cv_showinput);
 	CV_RegisterVar(&cv_showinputjoy);
+	CV_RegisterVar(&cv_respectinputpositions);
+
+	CV_RegisterVar(&cv_inputxposition);
+	CV_RegisterVar(&cv_inputyposition);
+	CV_RegisterVar(&cv_inputflags);
 
 	// time attack ghost options are also saved to config
 	CV_RegisterVar(&cv_ghost_bestscore);

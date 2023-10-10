@@ -1028,49 +1028,76 @@ static void ST_drawLivesArea(void)
 	}
 }
 
+#define drawButton(xoffs, yoffs, butt, symb)\
+	if (stplyr->cmd.buttons & butt)\
+	{\
+		offs = 0;\
+		col = accent;\
+	}\
+	else\
+	{\
+		offs = 1;\
+		col = flags | 16;\
+		V_DrawFill(x + 16 + xoffs, y + 9 + yoffs, 10, 1, flags | 29);\
+	}\
+	V_DrawFill(x + 16 + xoffs, y + yoffs - offs, 10, 10, col);\
+	V_DrawCharacter(x + 17 + xoffs, (y + 1) + yoffs - offs, flags | symb, false)
+
 static void ST_drawInput(void)
 {
-	const INT32 accent = V_SNAPTOLEFT|V_SNAPTOBOTTOM|(stplyr->skincolor ? skincolors[stplyr->skincolor].ramp[4] : 0);
+	if (stplyr->spectator)
+		return;
+
+	// Weird thing, but will be useful for the future
+	INT32 x, y;
+	INT32 flags = V_HUDTRANS | V_PERPLAYER;
+
+	if (cv_respectinputpositions.value)
+	{
+		x = hudinfo[HUD_LIVES].x, y = hudinfo[HUD_LIVES].y - 21;
+		flags |= hudinfo[HUD_LIVES].f;
+	}
+	else
+	{
+		x = cv_inputxposition.value, y = cv_inputyposition.value;
+		flags |= cv_inputflags.value;
+	}
+
+	const INT32 accent = flags | (stplyr->skincolor ? skincolors[stplyr->skincolor].ramp[4] : 0);
 	INT32 col;
 	UINT8 offs;
 
-	INT32 x = hudinfo[HUD_LIVES].x, y = hudinfo[HUD_LIVES].y;
-
-	if (stplyr->powers[pw_carry] == CR_NIGHTSMODE)
-		y -= 16;
+	// Force positions for various things, no matter what
+	if (modeattacking || G_IsSpecialStage(gamemap))
+	{
+		x = hudinfo[HUD_LIVES].x;
+		y = hudinfo[HUD_LIVES].y - ((stplyr->powers[pw_carry] == CR_NIGHTSMODE) ? 22 : 4);
+		flags = V_SNAPTOBOTTOM | V_SNAPTOLEFT | V_HUDTRANS | V_PERPLAYER;
+	}
 
 	if (F_GetPromptHideHud(y))
 		return;
 
 	// O backing
-	V_DrawFill(x, y-1, 16, 16, hudinfo[HUD_LIVES].f|20);
-	V_DrawFill(x, y+15, 16, 1, hudinfo[HUD_LIVES].f|29);
+	V_DrawFill(x, y - 1, 16, 16, flags | 20);
+	V_DrawFill(x, y + 15, 16, 1, flags | 29);
 
 	if (cv_showinputjoy.value) // joystick render!
 	{
-		/*V_DrawFill(x   , y   , 16,  1, hudinfo[HUD_LIVES].f|16);
-		V_DrawFill(x   , y+15, 16,  1, hudinfo[HUD_LIVES].f|16);
-		V_DrawFill(x   , y+ 1,  1, 14, hudinfo[HUD_LIVES].f|16);
-		V_DrawFill(x+15, y+ 1,  1, 14, hudinfo[HUD_LIVES].f|16); -- red's outline*/
 		if (stplyr->cmd.sidemove || stplyr->cmd.forwardmove)
 		{
 			// joystick hole
-			V_DrawFill(x+5, y+4, 6, 6, hudinfo[HUD_LIVES].f|29);
+			V_DrawFill(x + 5, y + 4, 6, 6, flags | 29);
+
 			// joystick top
-			V_DrawFill(x+3+stplyr->cmd.sidemove/12,
-				y+2-stplyr->cmd.forwardmove/12,
-				10, 10, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+3+stplyr->cmd.sidemove/9,
-				y+1-stplyr->cmd.forwardmove/9,
-				10, 10, accent);
+			V_DrawFill((x + 3) + (stplyr->cmd.sidemove / 12), (y + 2) - (stplyr->cmd.forwardmove / 12), 10, 10, flags | 29);
+			V_DrawFill((x + 3) + (stplyr->cmd.sidemove / 9), (y + 1) - (stplyr->cmd.forwardmove / 9), 10, 10, accent);
 		}
 		else
 		{
 			// just a limited, greyed out joystick top
-			V_DrawFill(x+3, y+11, 10, 1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+3,
-				y+1,
-				10, 10, hudinfo[HUD_LIVES].f|16);
+			V_DrawFill(x + 3, y + 11, 10, 1, flags | 29);
+			V_DrawFill(x + 3, y + 1, 10, 10, flags | 16);
 		}
 	}
 	else // arrows!
@@ -1084,14 +1111,15 @@ static void ST_drawInput(void)
 		else
 		{
 			offs = 1;
-			col = hudinfo[HUD_LIVES].f|16;
-			V_DrawFill(x- 2, y+10,  6,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+ 4, y+ 9,  1,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+ 5, y+ 8,  1,  1, hudinfo[HUD_LIVES].f|29);
+			col = flags | 16;
+
+			V_DrawFill(x - 2, y + 10, 6,  1, flags | 29);
+			V_DrawFill(x + 4, y + 9, 1,  1, flags | 29);
+			V_DrawFill(x + 5, y + 8, 1,  1, flags | 29);
 		}
-		V_DrawFill(x- 2, y+ 5-offs,  6,  6, col);
-		V_DrawFill(x+ 4, y+ 6-offs,  1,  4, col);
-		V_DrawFill(x+ 5, y+ 7-offs,  1,  2, col);
+		V_DrawFill(x - 2, y + 5 - offs, 6, 6, col);
+		V_DrawFill(x + 4, y + 6 - offs, 1, 4, col);
+		V_DrawFill(x + 5, y + 7 - offs, 1, 2, col);
 
 		// ^
 		if (stplyr->cmd.forwardmove > 0)
@@ -1102,16 +1130,17 @@ static void ST_drawInput(void)
 		else
 		{
 			offs = 1;
-			col = hudinfo[HUD_LIVES].f|16;
-			V_DrawFill(x+ 5, y+ 3,  1,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+ 6, y+ 4,  1,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+ 7, y+ 5,  2,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+ 9, y+ 4,  1,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+10, y+ 3,  1,  1, hudinfo[HUD_LIVES].f|29);
+			col = flags | 16;
+
+			V_DrawFill(x + 5, y + 3, 1, 1, flags | 29);
+			V_DrawFill(x + 6, y + 4, 1, 1, flags | 29);
+			V_DrawFill(x + 7, y + 5, 2, 1, flags | 29);
+			V_DrawFill(x + 9, y + 4, 1, 1, flags | 29);
+			V_DrawFill(x + 10, y + 3, 1, 1, flags | 29);
 		}
-		V_DrawFill(x+ 5, y- 2-offs,  6,  6, col);
-		V_DrawFill(x+ 6, y+ 4-offs,  4,  1, col);
-		V_DrawFill(x+ 7, y+ 5-offs,  2,  1, col);
+		V_DrawFill(x + 5, y - 2 - offs, 6, 6, col);
+		V_DrawFill(x + 6, y + 4 - offs, 4, 1, col);
+		V_DrawFill(x + 7, y + 5 - offs, 2, 1, col);
 
 		// >
 		if (stplyr->cmd.sidemove > 0)
@@ -1122,14 +1151,15 @@ static void ST_drawInput(void)
 		else
 		{
 			offs = 1;
-			col = hudinfo[HUD_LIVES].f|16;
-			V_DrawFill(x+12, y+10,  6,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+11, y+ 9,  1,  1, hudinfo[HUD_LIVES].f|29);
-			V_DrawFill(x+10, y+ 8,  1,  1, hudinfo[HUD_LIVES].f|29);
+			col = flags | 16;
+
+			V_DrawFill(x + 12, y + 10, 6, 1, flags | 29);
+			V_DrawFill(x + 11, y + 9, 1, 1, flags | 29);
+			V_DrawFill(x + 10, y + 8, 1, 1, flags | 29);
 		}
-		V_DrawFill(x+12, y+ 5-offs,  6,  6, col);
-		V_DrawFill(x+11, y+ 6-offs,  1,  4, col);
-		V_DrawFill(x+10, y+ 7-offs,  1,  2, col);
+		V_DrawFill(x + 12, y + 5 - offs, 6, 6, col);
+		V_DrawFill(x + 11, y + 6 - offs, 1, 4, col);
+		V_DrawFill(x + 10, y + 7 - offs, 1, 2, col);
 
 		// v
 		if (stplyr->cmd.forwardmove < 0)
@@ -1140,107 +1170,93 @@ static void ST_drawInput(void)
 		else
 		{
 			offs = 1;
-			col = hudinfo[HUD_LIVES].f|16;
-			V_DrawFill(x+ 5, y+17,  6,  1, hudinfo[HUD_LIVES].f|29);
+			col = flags | 16;
+			V_DrawFill(x + 5, y + 17, 6, 1, flags | 29);
 		}
-		V_DrawFill(x+ 5, y+12-offs,  6,  6, col);
-		V_DrawFill(x+ 6, y+11-offs,  4,  1, col);
-		V_DrawFill(x+ 7, y+10-offs,  2,  1, col);
+		V_DrawFill(x + 5, y + 12 - offs, 6, 6, col);
+		V_DrawFill(x + 6, y + 11 - offs, 4, 1, col);
+		V_DrawFill(x + 7, y + 10 - offs, 2, 1, col);
 	}
 
-#define drawbutt(xoffs, yoffs, butt, symb)\
-	if (stplyr->cmd.buttons & butt)\
-	{\
-		offs = 0;\
-		col = accent;\
-	}\
-	else\
-	{\
-		offs = 1;\
-		col = hudinfo[HUD_LIVES].f|16;\
-		V_DrawFill(x+16+(xoffs), y+9+(yoffs), 10, 1, hudinfo[HUD_LIVES].f|29);\
-	}\
-	V_DrawFill(x+16+(xoffs), y+(yoffs)-offs, 10, 10, col);\
-	V_DrawCharacter(x+16+1+(xoffs), y+1+(yoffs)-offs, hudinfo[HUD_LIVES].f|symb, false)
+	drawButton( 4, -3, BT_JUMP, 'J');
+	drawButton(15, -3, BT_SPIN, 'S');
 
-	drawbutt( 4,-3, BT_JUMP, 'J');
-	drawbutt(15,-3, BT_SPIN, 'S');
-
-	V_DrawFill(x+16+4, y+8, 21, 10, hudinfo[HUD_LIVES].f|20); // sundial backing
+	// Current angle
+	V_DrawFill(x + 16 + 4, y + 8, 21, 10, flags | 20); // sundial backing
 	if (stplyr->mo)
 	{
 		UINT8 i, precision;
-		angle_t ang = (stplyr->powers[pw_carry] == CR_NIGHTSMODE)
-		? (FixedAngle((stplyr->flyangle-90)<<FRACBITS)>>ANGLETOFINESHIFT)
-		: (stplyr->mo->angle - R_PointToAngle(stplyr->mo->x, stplyr->mo->y))>>ANGLETOFINESHIFT;
-		fixed_t xcomp = FINESINE(ang)>>13;
-		fixed_t ycomp = FINECOSINE(ang)>>14;
+		angle_t ang = (stplyr->powers[pw_carry] == CR_NIGHTSMODE) ? (FixedAngle((stplyr->flyangle - 90) << FRACBITS) >> ANGLETOFINESHIFT) : (stplyr->mo->angle - R_PointToAngle(stplyr->mo->x, stplyr->mo->y)) >> ANGLETOFINESHIFT;
+
+		fixed_t xcomp = FINESINE(ang) >> 13;
+		fixed_t ycomp = FINECOSINE(ang) >> 14;
+
 		if (ycomp == 4)
 			ycomp = 3;
 
 		if (ycomp > 0)
-			V_DrawFill(x+16+13-xcomp, y+11-ycomp, 3, 3, accent); // point (behind)
+			V_DrawFill(x + 16 + 13 - xcomp, y + 11 - ycomp, 3, 3, accent); // point (behind)
 
 		precision = max(3, abs(xcomp));
 		for (i = 0; i < precision; i++) // line
-		{
-			V_DrawFill(x+16+14-(i*xcomp)/precision,
-				y+12-(i*ycomp)/precision,
-				1, 1, hudinfo[HUD_LIVES].f|16);
-		}
+			V_DrawFill(x + 16 + 14 - (i * xcomp) / precision, y + 12 - (i * ycomp) / precision, 1, 1, flags | 16);
 
 		if (ycomp <= 0)
-			V_DrawFill(x+16+13-xcomp, y+11-ycomp, 3, 3, accent); // point (in front)
+			V_DrawFill(x + 16 + 13 - xcomp, y + 11 - ycomp, 3, 3, accent); // point (in front)
 	}
 
-#undef drawbutt
+#undef drawButton
 
-	// text above
-	x -= 2;
-	y -= 13;
-	if (stplyr->powers[pw_carry] != CR_NIGHTSMODE)
+	// Cool and all, but only in record attack.
+	if (modeattacking)
 	{
-		if (stplyr->pflags & PF_AUTOBRAKE)
+		x -= 2;
+		y -= 13;
+
+		if (stplyr->powers[pw_carry] != CR_NIGHTSMODE)
 		{
-			V_DrawThinString(x, y,
-				hudinfo[HUD_LIVES].f|
-				((!stplyr->powers[pw_carry]
-				&& (stplyr->pflags & PF_APPLYAUTOBRAKE)
-				&& !(stplyr->cmd.sidemove || stplyr->cmd.forwardmove)
-				&& (stplyr->rmomx || stplyr->rmomy)
-				&& (!stplyr->capsule || (stplyr->capsule->reactiontime != (stplyr-players)+1)))
-				? 0 : V_GRAYMAP),
-				"AUTOBRAKE");
-			y -= 8;
+			if (stplyr->pflags & PF_AUTOBRAKE)
+			{
+				boolean should_autobrake = (!stplyr->powers[pw_carry]
+					&& (stplyr->pflags & PF_APPLYAUTOBRAKE)
+					&& !(stplyr->cmd.sidemove || stplyr->cmd.forwardmove)
+					&& (stplyr->rmomx || stplyr->rmomy)
+					&& (!stplyr->capsule || (stplyr->capsule->reactiontime != ((stplyr - players) + 1))));
+
+				V_DrawThinString(x, y, flags | (should_autobrake ? 0 : V_GRAYMAP), "AUTOBRAKE");
+				y -= 8;
+			}
+			switch (P_ControlStyle(stplyr))
+			{
+				case CS_LMAOGALOG:
+					V_DrawThinString(x, y, flags, "ANALOG");
+					y -= 8;
+					break;
+
+				case CS_SIMPLE:
+					V_DrawThinString(x, y, flags, "AUTOMATIC");
+					y -= 8;
+					break;
+
+				case CS_STANDARD:
+					V_DrawThinString(x, y, flags, "MANUAL");
+					y -= 8;
+					break;
+
+				case CS_LEGACY:
+					V_DrawThinString(x, y, flags, "STRAFE");
+					y -= 8;
+					break;
+
+				default:
+					break;
+			}
 		}
-		switch (P_ControlStyle(stplyr))
-		{
-		case CS_LMAOGALOG:
-			V_DrawThinString(x, y, hudinfo[HUD_LIVES].f, "ANALOG");
-			y -= 8;
-			break;
 
-		case CS_SIMPLE:
-			V_DrawThinString(x, y, hudinfo[HUD_LIVES].f, "AUTOMATIC");
-			y -= 8;
-			break;
-
-		case CS_STANDARD:
-			V_DrawThinString(x, y, hudinfo[HUD_LIVES].f, "MANUAL");
-			y -= 8;
-			break;
-
-		case CS_LEGACY:
-			V_DrawThinString(x, y, hudinfo[HUD_LIVES].f, "STRAFE");
-			y -= 8;
-			break;
-
-		default:
-			break;
-		}
+		// should always be last, so it doesn't push anything else around
+		if (!demosynced)
+			V_DrawThinString(x, y, flags | ((leveltime & 4) ? V_YELLOWMAP : V_REDMAP), "BAD DEMO!!");
 	}
-	if (!demosynced) // should always be last, so it doesn't push anything else around
-		V_DrawThinString(x, y, hudinfo[HUD_LIVES].f|((leveltime & 4) ? V_YELLOWMAP : V_REDMAP), "BAD DEMO!!");
 }
 
 static patch_t *lt_patches[3];
@@ -2797,10 +2813,13 @@ static void ST_overlayDrawer(void)
 		}
 		else if (cv_powerupdisplay.value == 2)
 			ST_drawPowerupHUD();  // same as it ever was...
-		
+
 	}
 	else if (!(netgame || multiplayer) && cv_powerupdisplay.value == 2)
 		ST_drawPowerupHUD(); // same as it ever was...
+
+	if (cv_showinput.value && (!demoplayback && !(hu_showscores && (netgame || multiplayer))))
+		ST_drawInput();
 
 	if (!(netgame || multiplayer) || !hu_showscores)
 	{
@@ -2819,9 +2838,6 @@ static void ST_overlayDrawer(void)
 
 	if (!hu_showscores && (netgame || multiplayer) && LUA_HudEnabled(hud_textspectator))
 		ST_drawTextHUD();
-
-	if (modeattacking && !(demoplayback && hu_showscores))
-		ST_drawInput();
 
 	ST_drawDebugInfo();
 }

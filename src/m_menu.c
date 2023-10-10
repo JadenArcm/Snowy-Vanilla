@@ -387,6 +387,7 @@ static void M_DrawControl(void);
 static void M_DrawMainVideoMenu(void);
 static void M_DrawVideoMode(void);
 static void M_DrawColorMenu(void);
+static void M_DrawHUDMenu(void);
 static void M_DrawScreenshotMenu(void);
 static void M_DrawMonitorToggles(void);
 #ifndef NONET
@@ -1447,24 +1448,34 @@ static menuitem_t OP_HUDOptions[] =
 	{IT_STRING | IT_CVAR,                NULL, "Score/Time/Rings", &cv_timetic,        21},
 	{IT_STRING | IT_CVAR,                NULL, "Show Powerups",    &cv_powerupdisplay, 26},
 
-	{IT_HEADER, NULL, "Console", NULL, 35},
-	{IT_STRING | IT_CVAR, NULL, "Background color", &cons_backcolor,     41},
-	{IT_STRING | IT_CVAR, NULL, "Text Size",        &cv_constextsize,    46},
-	{IT_STRING | IT_CVAR, NULL, "Menu Highlights",  &cons_menuhighlight, 51},
+	{IT_HEADER, NULL, "Input Display", NULL, 35},
+	{IT_STRING | IT_CVAR, NULL, "Show Input",              &cv_showinput,             41},
+	{IT_STRING | IT_CVAR, NULL, "Input Joystick",          &cv_showinputjoy,          46},
+	{IT_STRING | IT_CVAR, NULL, "Respect Input Positions", &cv_respectinputpositions, 51},
 
-	{IT_HEADER, NULL, "Online Display", NULL, 60},
-	{IT_STRING | IT_CVAR,                NULL, "Chat Mode",            &cv_consolechat,        66},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Width",       &cv_chatwidth,          71},
-	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Height",      &cv_chatheight,         76},
-	{IT_STRING | IT_CVAR,                NULL, "Message Fadeout Time", &cv_chattime,           81},
-	{IT_STRING | IT_CVAR,                NULL, "Chat Notifications",   &cv_chatnotifications,  86},
-	{IT_STRING | IT_CVAR,                NULL, "Spam Protection",      &cv_chatspamprotection, 91},
-	{IT_STRING | IT_CVAR,                NULL, "Chat background tint", &cv_chatbacktint,       96},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Input X-Position",     &cv_inputxposition, 61},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Input Y-Position",     &cv_inputyposition, 66},
+	{IT_STRING | IT_CVAR,                NULL, "Input Position Flags", &cv_inputflags,     71},
 
-	{IT_HEADER, NULL, "Miscellaneous", NULL, 105},
-	{IT_STRING | IT_CVAR, NULL, "Local ping display", &cv_showping,       111},
-	{IT_STRING | IT_CVAR, NULL, "Show player names",  &cv_seenames,       116},
-	{IT_STRING | IT_CVAR, NULL, "Lowercased menu",    &cv_lowercasedmenu, 121},
+	{IT_HEADER, NULL, "Console", NULL, 80},
+	{IT_STRING | IT_CVAR, NULL, "Background color", &cons_backcolor,     86},
+	{IT_STRING | IT_CVAR, NULL, "Text Size",        &cv_constextsize,    91},
+	{IT_STRING | IT_CVAR, NULL, "Menu Highlights",  &cons_menuhighlight, 96},
+	// TODO: Show how highlights affect a state (warnings with red/orange, ...)
+
+	{IT_HEADER, NULL, "Online Display", NULL, 105},
+	{IT_STRING | IT_CVAR,                NULL, "Chat Mode",            &cv_consolechat,        111},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Width",       &cv_chatwidth,          116},
+	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Chat Box Height",      &cv_chatheight,         121},
+	{IT_STRING | IT_CVAR,                NULL, "Message Fadeout Time", &cv_chattime,           126},
+	{IT_STRING | IT_CVAR,                NULL, "Chat Notifications",   &cv_chatnotifications,  131},
+	{IT_STRING | IT_CVAR,                NULL, "Spam Protection",      &cv_chatspamprotection, 136},
+	{IT_STRING | IT_CVAR,                NULL, "Chat background tint", &cv_chatbacktint,       141},
+
+	{IT_HEADER, NULL, "Miscellaneous", NULL, 150},
+	{IT_STRING | IT_CVAR, NULL, "Local ping display", &cv_showping,       156},
+	{IT_STRING | IT_CVAR, NULL, "Show player names",  &cv_seenames,       161},
+	{IT_STRING | IT_CVAR, NULL, "Lowercased menu",    &cv_lowercasedmenu, 166},
 };
 
 static menuitem_t OP_SoundOptionsMenu[] =
@@ -2192,7 +2203,7 @@ menu_t OP_HUDOptionsDef =
 	sizeof(OP_HUDOptions) / sizeof(menuitem_t),
 	&OP_MainDef,
 	OP_HUDOptions,
-	M_DrawGenericScrollMenu,
+	M_DrawHUDMenu,
 	30, 30,
 	0,
 	NULL
@@ -5098,6 +5109,21 @@ static inline size_t M_StringHeight(const char *string)
 
 	return h;
 }
+
+//
+// M_DrawDescription
+//
+// Draw a thin string with a black bar behind it
+//
+static void M_DrawDescription(const char *string, boolean cond)
+{
+	if (!cond)
+		return;
+
+	V_DrawFill(0, 186, vid.width, 20, 31 | V_SNAPTOBOTTOM | V_SNAPTOLEFT | V_20TRANS);
+	V_DrawCenteredThinString(BASEVIDWIDTH / 2, 190, V_ALLOWLOWERCASE | V_SNAPTOBOTTOM, string);
+}
+
 
 // ==========================================================================
 // Extraneous menu patching functions
@@ -14224,6 +14250,15 @@ static void M_DrawScreenshotMenu(void)
 	}
 #endif
 }
+
+static void M_DrawHUDMenu(void)
+{
+	M_DrawGenericScrollMenu();
+
+	M_DrawDescription(va("This uses the default positions used by %chudinfo[HUD_LIVES]\x80.", 0x86), (itemOn == 8));
+	M_DrawDescription(va("This doesn't apply on %cRecord\x80/%cNiGHTS\x80 Attack, or %cSpecial Stages\x80.", 0x82, 0x84, 0x83), (itemOn >= 9 && itemOn <= 11));
+}
+
 
 // ===============
 // Monitor Toggles
