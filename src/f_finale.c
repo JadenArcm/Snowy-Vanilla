@@ -202,6 +202,12 @@ static patch_t *endescp[5]; // escape pod + flame
 static INT32 sparkloffs[3][2]; // eggrock explosions/blackrock sparkles
 static INT32 sparklloop;
 
+// Vainile: Waiting for next player is fairly inspired by kart, lets finish it!
+static patch_t *walker[8]; // im risking everything here
+static UINT8 *walkercolormap;
+static UINT8 walkerframe;
+static INT32 walkerskin;
+
 //
 // PROMPT STATE
 //
@@ -4681,8 +4687,27 @@ void F_TextPromptTicker(void)
 
 void F_StartWaitingPlayers(void)
 {
+	INT32 i;
+	spriteframe_t *sprframe;
+
 	wipegamestate = GS_TITLESCREEN; // technically wiping from title screen
 	finalecount = 0;
+
+	// I'm doing this so i don't crash out of the game
+	// -> 0: Sonic - 5: Metal Sonic
+	walkerskin = M_RandomKey(5);
+	walkerframe = 0;
+
+	if (walkercolormap)
+		Z_Free(walkercolormap);
+
+	walkercolormap = R_GetTranslationColormap(walkerskin, skins[walkerskin].prefcolor, 0);
+
+	for (i = 0; i < 8; i++)
+	{
+		sprframe = &skins[walkerskin].sprites[SPR2_WALK].spriteframes[i];
+		walker[i] = W_CachePatchNum(sprframe->lumppat[1], PU_PATCH_LOWPRIORITY);
+	}
 }
 
 void F_WaitingPlayersTicker(void)
@@ -4699,11 +4724,16 @@ void F_WaitingPlayersTicker(void)
 
 void F_WaitingPlayersDrawer(void)
 {
-	const char *waittext1 = "You will join";
-	const char *waittext2 = "next level...";
+	// Text...................
+	const char *waittext1 = "You will join on";
+	const char *waittext2 = "the next level...";
 
 	V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
 
-	V_DrawCreditString((160 - (V_CreditStringWidth(waittext1)>>1))<<FRACBITS, 48<<FRACBITS, 0, waittext1);
-	V_DrawCreditString((160 - (V_CreditStringWidth(waittext2)>>1))<<FRACBITS, 64<<FRACBITS, 0, waittext2);
+	V_DrawCreditString((160 - (V_CreditStringWidth(waittext1) >> 1)) << FRACBITS, 48 << FRACBITS, 0, waittext1);
+	V_DrawCreditString((160 - (V_CreditStringWidth(waittext2) >> 1)) << FRACBITS, 64 << FRACBITS, 0, waittext2);
+
+	// Draw a random character below, as this was made with kart in mind
+	INT32 frame = (finalecount / 4) % 8;
+	V_DrawFixedPatch((160 << FRACBITS) - (walker[frame]->width / 2), 154 << FRACBITS, skins[walkerskin].highresscale, V_FLIP, walker[frame], walkercolormap);
 }
