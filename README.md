@@ -1,6 +1,7 @@
 <h1 align="center"> Sonic Robo Blast 2 - Vainile </h1>
 
 Hello! This repository stores a custom build of [SRB2](https://srb2.org/), which mostly includes visual edits and nothing more.
+* This is archived since i don't really play SRB2 anymore, nor i want to maintain this with future updates with the game.
 
 <h1 align="center"> What can be found..? </h1>
 
